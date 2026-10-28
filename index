@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Caderno de Estudo Musical - Viola, Violino & Violoncelo</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- VexFlow 3.0.9 para renderização de partitura -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/vexflow/3.0.9/vexflow-min.js"></script>
+  <!-- html2pdf.js para exportação de PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <!-- FontAwesome para ícones -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    body { 
+      font-family: 'Inter', sans-serif; 
+      background-color: #f3f4f6; 
+    }
+    .staff-container { 
+      width: 100%; 
+      overflow-x: auto; 
+      text-align: center; 
+    }
+    .pdf-hide { 
+      display: block; 
+    }
+    .pdf-mode .pdf-hide { 
+      display: none !important; 
+    }
+    .pdf-mode { 
+      background-color: white; 
+      padding: 20px; 
+    }
+    
+    .staff-container svg {
+      max-width: 100%;
+      height: auto;
+      overflow: visible !important;
+      margin: 0 auto;
+    }
+
+    /* Estilo para destaque da nota durante o playback */
+    .vf-notehead.playing-note path {
+      fill: #4f46e5 !important;
+      stroke: #4f46e5 !important;
+      filter: drop-shadow(0px 0px 4px #818cf8);
+    }
+    input[type="file"] {
+      display: none;
+    }
+  </style>
+</head>
+<body class="min-h-screen text-gray-800 p-2 sm:p-6 flex flex-col items-center">
+
+    <div id="app-container" class="w-full max-w-6xl bg-white rounded-2xl shadow-xl p-4 sm:p-6">
+        
+        <!-- Cabeçalho e Ações Principais -->
+        <div class="flex flex-col sm:flex-row justify-between items-center mb-6 border-b pb-4 pdf-hide gap-3">
+            <div>
+                <h1 class="text-2xl font-extrabold text-indigo-700 tracking-tight" id="app-header-title">Estúdio de Música &amp; Partitura</h1>
+                <p class="text-xs text-gray-500 font-medium" id="app-header-subtitle">Clave de Dó (Viola), Sol (Violino) &amp; Fá (Violoncelo) • Caderno de Estudos</p>
+            </div>
+            <div class="flex flex-wrap gap-2 w-full sm:w-auto items-center justify-end">
+                <input type="text" id="music-title-input" placeholder="Título da Partitura / Exercício..." class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 flex-1 sm:w-60">
+                
+                <!-- Importador de MusicXML -->
+                <label for="musicxmlInput" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-1.5 px-3 rounded-lg transition-colors shadow-sm text-sm cursor-pointer flex items-center gap-1.5">
+                    <i class="fa-solid fa-file-import"></i> Importar XML
+                </label>
+                <input type="file" id="musicxmlInput" accept=".xml,.musicxml">
+
+                <button onclick="savePDF()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-1.5 px-3 rounded-lg transition-colors shadow-sm text-sm shrink-0 flex items-center gap-1.5">
+                    <i class="fa-solid fa-file-pdf"></i> Salvar PDF
+                </button>
+            </div>
+        </div>
+
+        <!-- Título que aparece exclusivamente no PDF -->
+        <h2 id="pdf-title" class="text-3xl font-bold text-center mb-6 hidden"></h2>
+
+        <!-- Mensagens de Alerta / Validação -->
+        <div id="message-box" class="hidden mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm text-center font-medium shadow-sm"></div>
+
+        <!-- Painel de Áudio, Metrônomo e Playback -->
+        <div class="pdf-hide bg-indigo-900 text-white p-3.5 sm:p-4 rounded-xl mb-6 shadow-md">
+            <div class="flex flex-wrap items-center justify-between gap-4">
+                
+                <!-- Playback Áudio -->
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold uppercase tracking-wider text-indigo-300 mr-1">Reprodução:</span>
+                    <button id="play-btn" onclick="togglePlay()" class="bg-indigo-500 hover:bg-indigo-400 text-white px-3.5 py-1.5 rounded-lg font-bold text-xs sm:text-sm flex items-center gap-1.5 transition-all shadow-sm">
+                        <span id="play-icon">▶</span> <span id="play-text">Ouvir Partitura</span>
+                    </button>
+                    <button onclick="stopPlayback()" class="bg-indigo-800 hover:bg-indigo-700 text-indigo-200 px-3 py-1.5 rounded-lg font-bold text-xs sm:text-sm transition-all">
+                        ■ Parar
+                    </button>
+                </div>
+
+                <!-- Metrônomo Integrado -->
+                <div class="flex items-center gap-3 bg-indigo-950/60 px-3 py-1.5 rounded-lg border border-indigo-800">
+                    <span class="text-xs font-bold uppercase tracking-wider text-indigo-300">Metrônomo:</span>
+                    <button id="metro-btn" onclick="toggleMetronome()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1 rounded text-xs font-bold transition-all">
+                        Ligar
+                    </button>
+                    <div class="flex items-center gap-2">
+                        <input type="range" id="bpm-range" min="40" max="208" value="80" oninput="updateBPM(this.value)" class="w-20 sm:w-28 accent-emerald-400 cursor-pointer">
+                        <span id="bpm-display" class="text-xs font-mono font-bold text-emerald-300 min-w-[55px]">80 BPM</span>
+                    </div>
+                    <div id="metro-pulse" class="w-3 h-3 rounded-full bg-indigo-800 border border-indigo-600 transition-colors"></div>
+                </div>
+
+                <!-- Andamento da Música -->
+                <div class="flex items-center gap-2">
+                    <label class="text-xs font-bold uppercase text-indigo-300">Andamento:</label>
+                    <select id="tempo-select" onchange="renderStaff()" class="bg-indigo-800 text-white text-xs rounded border border-indigo-700 px-2 py-1 focus:outline-none">
+                        <option value="Moderato (♩ = 80)" selected>Moderato (♩ = 80)</option>
+                        <option value="Allegro (♩ = 120)">Allegro (♩ = 120)</option>
+                        <option value="Andante (♩ = 60)">Andante (♩ = 60)</option>
+                        <option value="Adagio (♩ = 48)">Adagio (♩ = 48)</option>
+                        <option value="Presto (♩ = 140)">Presto (♩ = 140)</option>
+                    </select>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Barra de Configurações de Pauta e Estrutura -->
+        <div class="flex flex-wrap justify-center gap-3 mb-4 pdf-hide bg-gray-50 p-3 sm:p-4 rounded-xl border border-gray-200">
+            <div class="flex flex-col items-center">
+                <label class="text-xs font-semibold text-gray-500 uppercase mb-1">Clave / Instrumento</label>
+                <select id="clef-select" onchange="changeClef()" class="border border-gray-300 rounded-lg px-2 py-1 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-indigo-900">
+                    <option value="alto" selected>Clave de Dó 3ª lin (Viola)</option>
+                    <option value="treble">Clave de Sol (Violino)</option>
+                    <option value="bass">Clave de Fá (Violoncelo)</option>
+                </select>
+            </div>
+            <div class="flex flex-col items-center">
+                <label class="text-xs font-semibold text-gray-500 uppercase mb-1">Fórmula</label>
+                <select id="time-select" onchange="renderStaff()" class="border border-gray-300 rounded-lg px-2 py-1 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="4/4" selected>4/4</option>
+                    <option value="3/4">3/4</option>
+                    <option value="2/4">2/4</option>
+                    <option value="6/8">6/8</option>
+                </select>
+            </div>
+            <div class="flex flex-col items-center">
+                <label class="text-xs font-semibold text-gray-500 uppercase mb-1">Compassos/Linha</label>
+                <select id="measures-select" onchange="renderStaff()" class="border border-gray-300 rounded-lg px-2 py-1 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="2">2 Comp.</option>
+                    <option value="3">3 Comp.</option>
+                    <option value="4" selected>4 Comp.</option>
+                    <option value="5">5 Comp.</option>
+                    <option value="6">6 Comp.</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Área da Partitura (Renderização VexFlow) -->
+        <div class="w-full bg-white rounded-xl shadow-inner border border-gray-200 p-2 sm:p-4 mb-6 staff-container min-h-[200px]" id="vf-container">
+            <!-- Partitura renderizada aqui -->
+        </div>
+
+        <!-- Painel de Ferramentas de Escrita -->
+        <div class="pdf-hide space-y-3.5">
+            
+            <!-- Controle de Região / Oitava -->
+            <div class="flex flex-wrap items-center justify-center gap-2 bg-indigo-50 p-2.5 rounded-xl border border-indigo-100">
+                <span class="text-xs font-bold uppercase text-indigo-700 tracking-wide mr-1">Região / Oitava:</span>
+                <button onclick="setOctave(2, this)" id="octave-2-btn" class="octave-btn px-3 py-1 bg-white hover:bg-indigo-100 text-indigo-900 border border-indigo-200 text-xs font-semibold rounded-lg shadow-sm transition-all">
+                    Oitava 2 (C2)
+                </button>
+                <button onclick="setOctave(3, this)" id="octave-3-btn" class="octave-btn px-3 py-1 bg-white hover:bg-indigo-100 text-indigo-900 border border-indigo-200 text-xs font-semibold rounded-lg shadow-sm transition-all">
+                    Oitava 3 (C3)
+                </button>
+                <button onclick="setOctave(4, this)" id="octave-4-btn" class="octave-btn px-3 py-1 bg-indigo-600 text-white border border-indigo-600 text-xs font-semibold rounded-lg shadow-sm transition-all">
+                    Oitava 4 (C4)
+                </button>
+                <button onclick="setOctave(5, this)" id="octave-5-btn" class="octave-btn px-3 py-1 bg-white hover:bg-indigo-100 text-indigo-900 border border-indigo-200 text-xs font-semibold rounded-lg shadow-sm transition-all">
+                    Oitava 5 (C5)
+                </button>
+                <button onclick="setOctave(6, this)" id="octave-6-btn" class="octave-btn px-3 py-1 bg-white hover:bg-indigo-100 text-indigo-900 border border-indigo-200 text-xs font-semibold rounded-lg shadow-sm transition-all">
+                    Oitava 6 (C6)
+                </button>
+            </div>
+
+            <!-- Durações -->
+            <div class="flex flex-wrap justify-center gap-1.5 sm:gap-2">
+                <button onclick="setDuration('w', this)" class="dur-btn bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-1 px-2.5 rounded-md text-xs sm:text-sm">Semibreve (4)</button>
+                <button onclick="setDuration('h', this)" class="dur-btn bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-1 px-2.5 rounded-md text-xs sm:text-sm">Mínima (2)</button>
+                <button onclick="setDuration('q', this)" class="dur-btn bg-indigo-500 hover:bg-indigo-600 text-white font-medium py-1 px-2.5 rounded-md text-xs sm:text-sm shadow-md">Semínima (1)</button>
+                <button onclick="setDuration('8', this)" class="dur-btn bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-1 px-2.5 rounded-md text-xs sm:text-sm">Colcheia (1/2)</button>
+                <button onclick="setDuration('16', this)" class="dur-btn bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-1 px-2.5 rounded-md text-xs sm:text-sm">Semicolcheia (1/4)</button>
+                <button onclick="setDuration('32', this)" class="dur-btn bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-1 px-2.5 rounded-md text-xs sm:text-sm">Fusa</button>
+                <button onclick="setDuration('64', this)" class="dur-btn bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-1 px-2.5 rounded-md text-xs sm:text-sm">Semifusa</button>
+            </div>
+
+            <!-- Modificadores Musicalmente Ricos -->
+            <div class="flex flex-wrap justify-center gap-1.5 sm:gap-2">
+                <!-- Acidentes -->
+                <button id="sharp-btn" onclick="toggleAccidental('#')" class="text-xs sm:text-sm bg-red-50 hover:bg-red-100 text-red-800 font-medium py-1 px-2.5 rounded-full border border-red-200">Sustenido (#)</button>
+                <button id="flat-btn" onclick="toggleAccidental('b')" class="text-xs sm:text-sm bg-red-50 hover:bg-red-100 text-red-800 font-medium py-1 px-2.5 rounded-full border border-red-200">Bemol (b)</button>
+                <button id="natural-btn" onclick="toggleAccidental('n')" class="text-xs sm:text-sm bg-red-50 hover:bg-red-100 text-red-800 font-medium py-1 px-2.5 rounded-full border border-red-200">Bequadro (♮)</button>
+                
+                <!-- Arcos -->
+                <button id="bow-talao-btn" onclick="toggleBow('talao')" class="text-xs sm:text-sm bg-blue-50 hover:bg-blue-100 text-blue-800 font-medium py-1 px-2.5 rounded-full border border-blue-200">Talão (⊓)</button>
+                <button id="bow-ponta-btn" onclick="toggleBow('ponta')" class="text-xs sm:text-sm bg-blue-50 hover:bg-blue-100 text-blue-800 font-medium py-1 px-2.5 rounded-full border border-blue-200">Ponta (∨)</button>
+                
+                <!-- Articulações -->
+                <button id="dot-btn" onclick="toggleDot()" class="text-xs sm:text-sm bg-yellow-50 hover:bg-yellow-100 text-yellow-800 font-medium py-1 px-2.5 rounded-full border border-yellow-200">Ponto (.)</button>
+                <button id="staccato-btn" onclick="toggleStaccato()" class="text-xs sm:text-sm bg-pink-50 hover:bg-pink-100 text-pink-800 font-medium py-1 px-2.5 rounded-full border border-pink-200">Staccato</button>
+                <button id="tie-btn" onclick="toggleTie()" class="text-xs sm:text-sm bg-teal-50 hover:bg-teal-100 text-teal-800 font-medium py-1 px-2.5 rounded-full border border-teal-200">Ligadura</button>
+            </div>
+
+            <!-- Dedilhados & Cordas do Instrumento -->
+            <div class="flex flex-wrap justify-center items-center gap-1.5 sm:gap-2 bg-amber-50/70 p-2 rounded-xl border border-amber-200/60">
+                <span class="text-xs font-bold uppercase text-amber-800 mr-1">Dedilhado / Corda:</span>
+                <button id="fing-0" onclick="toggleFingering('0')" class="fing-btn text-xs bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold px-2 py-0.5 rounded shadow-sm">0 (Solta)</button>
+                <button id="fing-1" onclick="toggleFingering('1')" class="fing-btn text-xs bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold px-2 py-0.5 rounded shadow-sm">1º Dedo</button>
+                <button id="fing-2" onclick="toggleFingering('2')" class="fing-btn text-xs bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold px-2 py-0.5 rounded shadow-sm">2º Dedo</button>
+                <button id="fing-3" onclick="toggleFingering('3')" class="fing-btn text-xs bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold px-2 py-0.5 rounded shadow-sm">3º Dedo</button>
+                <button id="fing-4" onclick="toggleFingering('4')" class="fing-btn text-xs bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold px-2 py-0.5 rounded shadow-sm">4º Dedo</button>
+
+                <div class="h-4 w-[1px] bg-amber-300 mx-1"></div>
+
+                <div id="string-buttons-container" class="flex items-center gap-1.5"></div>
+            </div>
+
+            <!-- Dinâmicas Musicais -->
+            <div class="flex flex-wrap justify-center items-center gap-1.5 bg-purple-50 p-2 rounded-xl border border-purple-100">
+                <span class="text-xs font-bold uppercase text-purple-800 mr-1">Dinâmica:</span>
+                <button id="dyn-p" onclick="toggleDynamic('p')" class="dyn-btn text-xs italic font-serif bg-white hover:bg-purple-100 text-purple-900 border border-purple-200 px-2.5 py-0.5 rounded shadow-sm">p</button>
+                <button id="dyn-mp" onclick="toggleDynamic('mp')" class="dyn-btn text-xs italic font-serif bg-white hover:bg-purple-100 text-purple-900 border border-purple-200 px-2.5 py-0.5 rounded shadow-sm">mp</button>
+                <button id="dyn-mf" onclick="toggleDynamic('mf')" class="dyn-btn text-xs italic font-serif bg-white hover:bg-purple-100 text-purple-900 border border-purple-200 px-2.5 py-0.5 rounded shadow-sm">mf</button>
+                <button id="dyn-f" onclick="toggleDynamic('f')" class="dyn-btn text-xs italic font-serif bg-white hover:bg-purple-100 text-purple-900 border border-purple-200 px-2.5 py-0.5 rounded shadow-sm">f</button>
+                <button id="dyn-ff" onclick="toggleDynamic('ff')" class="dyn-btn text-xs italic font-serif bg-white hover:bg-purple-100 text-purple-900 border border-purple-200 px-2.5 py-0.5 rounded shadow-sm">ff</button>
+            </div>
+
+            <!-- Inserção de Notas e Estruturas -->
+            <div class="flex flex-wrap justify-center gap-1.5 sm:gap-2">
+                <button onclick="addNote('c')" class="note-btn min-w-[42px] h-10 bg-indigo-100 hover:bg-indigo-200 text-indigo-900 font-bold rounded-lg shadow-sm border border-indigo-200 text-xs sm:text-sm px-1.5" data-note="c">Dó4</button>
+                <button onclick="addNote('d')" class="note-btn min-w-[42px] h-10 bg-indigo-100 hover:bg-indigo-200 text-indigo-900 font-bold rounded-lg shadow-sm border border-indigo-200 text-xs sm:text-sm px-1.5" data-note="d">Ré4</button>
+                <button onclick="addNote('e')" class="note-btn min-w-[42px] h-10 bg-indigo-100 hover:bg-indigo-200 text-indigo-900 font-bold rounded-lg shadow-sm border border-indigo-200 text-xs sm:text-sm px-1.5" data-note="e">Mi4</button>
+                <button onclick="addNote('f')" class="note-btn min-w-[42px] h-10 bg-indigo-100 hover:bg-indigo-200 text-indigo-900 font-bold rounded-lg shadow-sm border border-indigo-200 text-xs sm:text-sm px-1.5" data-note="f">Fá4</button>
+                <button onclick="addNote('g')" class="note-btn min-w-[42px] h-10 bg-indigo-100 hover:bg-indigo-200 text-indigo-900 font-bold rounded-lg shadow-sm border border-indigo-200 text-xs sm:text-sm px-1.5" data-note="g">Sol4</button>
+                <button onclick="addNote('a')" class="note-btn min-w-[42px] h-10 bg-indigo-100 hover:bg-indigo-200 text-indigo-900 font-bold rounded-lg shadow-sm border border-indigo-200 text-xs sm:text-sm px-1.5" data-note="a">Lá4</button>
+                <button onclick="addNote('b')" class="note-btn min-w-[42px] h-10 bg-indigo-100 hover:bg-indigo-200 text-indigo-900 font-bold rounded-lg shadow-sm border border-indigo-200 text-xs sm:text-sm px-1.5" data-note="b">Si4</button>
+                
+                <button onclick="addRest()" class="px-3 h-10 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold rounded-lg shadow-sm text-xs sm:text-sm">Pausa</button>
+                
+                <div class="h-10 w-[1px] bg-gray-300 mx-0.5"></div>
+
+                <!-- Ritornelos e Voltas -->
+                <button onclick="addRepeatStart()" class="px-2.5 h-10 bg-purple-100 hover:bg-purple-200 text-purple-900 font-bold rounded-lg shadow-sm border border-purple-200 text-xs sm:text-sm">|: Início</button>
+                <button onclick="addRepeatEnd()" class="px-2.5 h-10 bg-purple-100 hover:bg-purple-200 text-purple-900 font-bold rounded-lg shadow-sm border border-purple-200 text-xs sm:text-sm">Fim :|</button>
+                <button onclick="addVolta(1)" class="px-2.5 h-10 bg-indigo-100 hover:bg-indigo-200 text-indigo-900 font-bold rounded-lg shadow-sm border border-indigo-200 text-xs sm:text-sm">1ª Vez</button>
+                <button onclick="addVolta(2)" class="px-2.5 h-10 bg-indigo-100 hover:bg-indigo-200 text-indigo-900 font-bold rounded-lg shadow-sm border border-indigo-200 text-xs sm:text-sm">2ª Vez</button>
+            </div>
+
+            <!-- Ações Gerais -->
+            <div class="flex justify-center gap-3 pt-2">
+                <button onclick="undo()" class="px-5 py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-lg shadow-md transition-all text-sm">Desfazer</button>
+                <button onclick="clearStaff()" class="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg shadow-md transition-all text-sm">Limpar Tudo</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const VF = Vex.Flow;
+        
+        let notesArray = [];
+        let currentClef = 'alto';
+        let currentDuration = 'q';    
+        let currentOctave = 4;
+        
+        let currentAccidental = null; 
+        let currentBow = null;        
+        let currentDot = false;
+        let currentStaccato = false;
+        let currentTie = false;
+        let currentFingering = null;
+        let currentStringInd = null;
+        let currentDynamic = null;
+
+        let isPlaying = false;
+        let playbackTimeout = null;
+        let audioCtx = null;
+        let reverbNode = null;
+
+        let metronomeInterval = null;
+        let isMetronomeOn = false;
+        let bpm = 80;
+
+        const noteNamesPt = { 'c': 'Dó', 'd': 'Ré', 'e': 'Mi', 'f': 'Fá', 'g': 'Sol', 'a': 'Lá', 'b': 'Si' };
+        const noteBaseMidi = { 'c': 0, 'd': 2, 'e': 4, 'f': 5, 'g': 7, 'a': 9, 'b': 11 };
+
+        const instrumentStrings = {
+            'alto': [
+                { id: 'C', name: 'Corda Dó' },
+                { id: 'G', name: 'Corda Sol' },
+                { id: 'D', name: 'Corda Ré' },
+                { id: 'A', name: 'Corda Lá' }
+            ],
+            'treble': [
+                { id: 'G', name: 'Corda Sol' },
+                { id: 'D', name: 'Corda Ré' },
+                { id: 'A', name: 'Corda Lá' },
+                { id: 'E', name: 'Corda Mi' }
+            ],
+            'bass': [
+                { id: 'C', name: 'Corda Dó' },
+                { id: 'G', name: 'Corda Sol' },
+                { id: 'D', name: 'Corda Ré' },
+                { id: 'A', name: 'Corda Lá' }
+            ]
+        };
+
+        const durationBeats = { 
+            'w': 4, 
+            'h': 2, 
+            'q': 1, 
+            '8': 0.5, 
+            '16': 0.25, 
+            '32': 0.125, 
+            '64': 0.0625 
+        };
+
+        function calculateExactFrequency(noteKey, octave, accidental) {
+            let midi = (octave + 1) * 12 + noteBaseMidi[noteKey.toLowerCase()];
+            if (accidental === '#') midi += 1;
+            if (accidental === 'b') midi -= 1;
+            return 440 * Math.pow(2, (midi - 69) / 12);
+        }
+
+        function getAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                setupReverb();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            return audioCtx;
+        }
+
+        function setupReverb() {
+            const delay = audioCtx.createDelay();
+            const feedback = audioCtx.createGain();
+            const filter = audioCtx.createBiquadFilter();
+
+            delay.delayTime.value = 0.075; 
+            feedback.gain.value = 0.25;   
+            filter.type = 'lowpass';
+            filter.frequency.value = 2200;
+
+            delay.connect(feedback);
+            feedback.connect(filter);
+            filter.connect(delay);
+            filter.connect(audioCtx.destination);
+
+            reverbNode = delay;
+        }
+
+        function playBowedStringNote(freq, durationSeconds, dynamicStr) {
+            const ctx = getAudioContext();
+            const now = ctx.currentTime;
+
+            let baseGain = 0.25;
+            if (dynamicStr === 'p') baseGain = 0.12;
+            else if (dynamicStr === 'mp') baseGain = 0.18;
+            else if (dynamicStr === 'mf') baseGain = 0.28;
+            else if (dynamicStr === 'f') baseGain = 0.38;
+            else if (dynamicStr === 'ff') baseGain = 0.48;
+
+            const oscSaw = ctx.createOscillator();
+            oscSaw.type = 'sawtooth';
+            oscSaw.frequency.setValueAtTime(freq, now);
+
+            const oscTri = ctx.createOscillator();
+            oscTri.type = 'triangle';
+            oscTri.frequency.setValueAtTime(freq, now);
+
+            const lfo = ctx.createOscillator();
+            const lfoGain = ctx.createGain();
+            lfo.type = 'sine';
+            lfo.frequency.setValueAtTime(5.5, now); 
+            lfoGain.gain.setValueAtTime(0, now);
+            lfoGain.gain.setTargetAtTime(freq * 0.008, now + 0.12, 0.08); 
+
+            lfo.connect(oscSaw.frequency);
+            lfo.connect(oscTri.frequency);
+
+            const bodyFilter = ctx.createBiquadFilter();
+            bodyFilter.type = 'lowpass';
+            
+            const startCutoff = Math.min(freq * 2.5, 1200);
+            const peakCutoff = Math.min(freq * 6.5, 8000);
+            bodyFilter.frequency.setValueAtTime(startCutoff, now);
+            bodyFilter.frequency.exponentialRampToValueAtTime(peakCutoff, now + 0.08);
+            bodyFilter.frequency.exponentialRampToValueAtTime(startCutoff * 1.5, now + durationSeconds);
+
+            const masterGain = ctx.createGain();
+            const attackTime = 0.07;
+            const releaseTime = 0.15;
+
+            masterGain.gain.setValueAtTime(0.0001, now);
+            masterGain.gain.linearRampToValueAtTime(baseGain, now + attackTime);
+            masterGain.gain.setValueAtTime(baseGain, now + durationSeconds - 0.02);
+            masterGain.gain.exponentialRampToValueAtTime(0.0001, now + durationSeconds + releaseTime);
+
+            oscSaw.connect(bodyFilter);
+            oscTri.connect(bodyFilter);
+            bodyFilter.connect(masterGain);
+
+            masterGain.connect(ctx.destination);
+            if (reverbNode) {
+                masterGain.connect(reverbNode);
+            }
+
+            lfo.start(now);
+            oscSaw.start(now);
+            oscTri.start(now);
+
+            const stopTime = now + durationSeconds + releaseTime + 0.05;
+            lfo.stop(stopTime);
+            oscSaw.stop(stopTime);
+            oscTri.stop(stopTime);
+        }
+
+        function updateStringButtons() {
+            const container = document.getElementById('string-buttons-container');
+            container.innerHTML = '';
+            
+            const strings = instrumentStrings[currentClef] || instrumentStrings['alto'];
+            
+            strings.forEach(s => {
+                const btn = document.createElement('button');
+                btn.id = `string-${s.id.toLowerCase()}`;
+                btn.onclick = () => toggleStringInd(s.id);
+                btn.className = "string-btn text-xs bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold px-2 py-0.5 rounded shadow-sm transition-all";
+                btn.textContent = s.name;
+                container.appendChild(btn);
+            });
+
+            currentStringInd = null;
+        }
+
+        function setOctave(oct, btnElement) {
+            currentOctave = oct;
+            document.querySelectorAll('.octave-btn').forEach(btn => {
+                btn.className = "octave-btn px-3 py-1 bg-white hover:bg-indigo-100 text-indigo-900 border border-indigo-200 text-xs font-semibold rounded-lg shadow-sm transition-all";
+            });
+            if (btnElement) {
+                btnElement.className = "octave-btn px-3 py-1 bg-indigo-600 text-white border border-indigo-600 text-xs font-semibold rounded-lg shadow-sm transition-all";
+            }
+            updateNoteButtonsText();
+        }
+
+        function updateNoteButtonsText() {
+            document.querySelectorAll('.note-btn').forEach(btn => {
+                const noteKey = btn.getAttribute('data-note');
+                const accSymbol = currentAccidental === '#' ? '#' : (currentAccidental === 'b' ? '♭' : (currentAccidental === 'n' ? '♮' : ''));
+                btn.textContent = `${noteNamesPt[noteKey]}${currentOctave}${accSymbol}`;
+            });
+        }
+
+        function getMaxBeats() {
+            const timeSig = document.getElementById("time-select").value;
+            if (timeSig === '3/4') return 3;
+            if (timeSig === '2/4') return 2;
+            if (timeSig === '6/8') return 3; 
+            return 4;
+        }
+
+        function showMessage(msg) {
+            const box = document.getElementById('message-box');
+            box.textContent = msg;
+            box.classList.remove('hidden');
+            setTimeout(() => box.classList.add('hidden'), 3500);
+        }
+
+        function setDuration(dur, btnElement) {
+            currentDuration = dur;
+            document.querySelectorAll('.dur-btn').forEach(btn => {
+                btn.className = "dur-btn bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-1 px-2.5 rounded-md text-xs sm:text-sm";
+            });
+            btnElement.className = "dur-btn bg-indigo-500 hover:bg-indigo-600 text-white font-medium py-1 px-2.5 rounded-md text-xs sm:text-sm shadow-md";
+        }
+
+        function toggleAccidental(acc) {
+            currentAccidental = (currentAccidental === acc) ? null : acc;
+            updateButtons();
+            updateNoteButtonsText();
+        }
+
+        function toggleBow(bowType) {
+            currentBow = (currentBow === bowType) ? null : bowType;
+            updateButtons();
+        }
+
+        function toggleDot() {
+            currentDot = !currentDot;
+            updateButtons();
+        }
+
+        function toggleStaccato() {
+            currentStaccato = !currentStaccato;
+            updateButtons();
+        }
+
+        function toggleTie() {
+            currentTie = !currentTie;
+            updateButtons();
+        }
+
+        function toggleFingering(f) {
+            currentFingering = (currentFingering === f) ? null : f;
+            document.querySelectorAll('.fing-btn').forEach(btn => btn.classList.remove('bg-amber-300', 'text-amber-950'));
+            if (currentFingering) {
+                const active = document.getElementById(`fing-${f}`);
+                if (active) active.classList.add('bg-amber-300', 'text-amber-950');
+            }
+        }
+
+        function toggleStringInd(str) {
+            currentStringInd = (currentStringInd === str) ? null : str;
+            document.querySelectorAll('.string-btn').forEach(btn => btn.classList.remove('bg-amber-300', 'text-amber-950'));
+            if (currentStringInd) {
+                const active = document.getElementById(`string-${str.toLowerCase()}`);
+                if (active) active.classList.add('bg-amber-300', 'text-amber-950');
+            }
+        }
+
+        function toggleDynamic(dyn) {
+            currentDynamic = (currentDynamic === dyn) ? null : dyn;
+            document.querySelectorAll('.dyn-btn').forEach(btn => btn.classList.remove('bg-purple-300', 'text-purple-950'));
+            if (currentDynamic) {
+                const active = document.getElementById(`dyn-${dyn}`);
+                if (active) active.classList.add('bg-purple-300', 'text-purple-950');
+            }
+        }
+
+        function updateButtons() {
+            const sBtn = document.getElementById("sharp-btn");
+            sBtn.className = currentAccidental === '#' ? "text-xs sm:text-sm bg-red-200 text-red-900 font-medium py-1 px-2.5 rounded-full border border-red-400 shadow-inner" : "text-xs sm:text-sm bg-red-50 hover:bg-red-100 text-red-800 font-medium py-1 px-2.5 rounded-full border border-red-200";
+            
+            const fBtn = document.getElementById("flat-btn");
+            fBtn.className = currentAccidental === 'b' ? "text-xs sm:text-sm bg-red-200 text-red-900 font-medium py-1 px-2.5 rounded-full border border-red-400 shadow-inner" : "text-xs sm:text-sm bg-red-50 hover:bg-red-100 text-red-800 font-medium py-1 px-2.5 rounded-full border border-red-200";
+            
+            const nBtn = document.getElementById("natural-btn");
+            nBtn.className = currentAccidental === 'n' ? "text-xs sm:text-sm bg-red-200 text-red-900 font-medium py-1 px-2.5 rounded-full border border-red-400 shadow-inner" : "text-xs sm:text-sm bg-red-50 hover:bg-red-100 text-red-800 font-medium py-1 px-2.5 rounded-full border border-red-200";
+
+            const tbBtn = document.getElementById("bow-talao-btn");
+            tbBtn.className = currentBow === 'talao' ? "text-xs sm:text-sm bg-blue-200 text-blue-900 font-medium py-1 px-2.5 rounded-full border border-blue-400 shadow-inner" : "text-xs sm:text-sm bg-blue-50 hover:bg-blue-100 text-blue-800 font-medium py-1 px-2.5 rounded-full border border-blue-200";
+
+            const pbBtn = document.getElementById("bow-ponta-btn");
+            pbBtn.className = currentBow === 'ponta' ? "text-xs sm:text-sm bg-blue-200 text-blue-900 font-medium py-1 px-2.5 rounded-full border border-blue-400 shadow-inner" : "text-xs sm:text-sm bg-blue-50 hover:bg-blue-100 text-blue-800 font-medium py-1 px-2.5 rounded-full border border-blue-200";
+
+            const dotBtn = document.getElementById("dot-btn");
+            dotBtn.className = currentDot ? "text-xs sm:text-sm bg-yellow-200 text-yellow-900 font-medium py-1 px-2.5 rounded-full border border-yellow-400 shadow-inner" : "text-xs sm:text-sm bg-yellow-50 hover:bg-yellow-100 text-yellow-800 font-medium py-1 px-2.5 rounded-full border border-yellow-200";
+
+            const stacBtn = document.getElementById("staccato-btn");
+            stacBtn.className = currentStaccato ? "text-xs sm:text-sm bg-pink-200 text-pink-900 font-medium py-1 px-2.5 rounded-full border border-pink-400 shadow-inner" : "text-xs sm:text-sm bg-pink-50 hover:bg-pink-100 text-pink-800 font-medium py-1 px-2.5 rounded-full border border-pink-200";
+
+            const tieBtn = document.getElementById("tie-btn");
+            tieBtn.className = currentTie ? "text-xs sm:text-sm bg-teal-200 text-teal-900 font-medium py-1 px-2.5 rounded-full border border-teal-400 shadow-inner" : "text-xs sm:text-sm bg-teal-50 hover:bg-teal-100 text-teal-800 font-medium py-1 px-2.5 rounded-full border border-teal-200";
+        }
+
+        function checkFit(newDuration) {
+            let currentMeasureBeats = 0;
+            let maxBeats = getMaxBeats();
+            
+            for (let n of notesArray) {
+                if (['repeat-start', 'repeat-end', 'volta-1', 'volta-2'].includes(n.type)) continue;
+                let b = durationBeats[n.duration] * (n.dot ? 1.5 : 1);
+                currentMeasureBeats += b;
+                if (currentMeasureBeats >= maxBeats - 0.001) {
+                    currentMeasureBeats = 0;
+                }
+            }
+            
+            let addedB = durationBeats[newDuration] * (currentDot ? 1.5 : 1);
+            if (currentMeasureBeats > 0 && (currentMeasureBeats + addedB) > maxBeats + 0.001) {
+                showMessage(`Nota excederá a capacidade do compasso! Restam ${(maxBeats - currentMeasureBeats).toFixed(2)} tempos.`);
+                return false;
+            }
+            return true;
+        }
+
+        function addNote(noteName) {
+            if (!checkFit(currentDuration)) return;
+            
+            notesArray.push({
+                type: 'note',
+                key: noteName,
+                octave: currentOctave,
+                accidental: currentAccidental,
+                duration: currentDuration,
+                bow: currentBow,
+                dot: currentDot,
+                staccato: currentStaccato,
+                tieNext: currentTie,
+                fingering: currentFingering,
+                stringInd: currentStringInd ? `Corda ${currentStringInd}` : null,
+                dynamic: currentDynamic
+            });
+            
+            if (currentAccidental) toggleAccidental(currentAccidental);
+            if (currentBow) toggleBow(currentBow); 
+            if (currentDot) toggleDot();
+            if (currentStaccato) toggleStaccato();
+            if (currentTie) toggleTie();
+            if (currentFingering) toggleFingering(currentFingering);
+            if (currentStringInd) toggleStringInd(currentStringInd);
+            if (currentDynamic) toggleDynamic(currentDynamic);
+
+            renderStaff();
+        }
+
+        function addRest() {
+            if (!checkFit(currentDuration)) return;
+            
+            notesArray.push({ 
+                type: 'rest',
+                duration: currentDuration,
+                dot: currentDot
+            });
+            
+            if (currentDot) toggleDot();
+            renderStaff();
+        }
+
+        function addRepeatStart() {
+            notesArray.push({ type: 'repeat-start' });
+            renderStaff();
+        }
+
+        function addRepeatEnd() {
+            notesArray.push({ type: 'repeat-end' });
+            renderStaff();
+        }
+
+        function addVolta(number) {
+            notesArray.push({ type: number === 1 ? 'volta-1' : 'volta-2' });
+            renderStaff();
+        }
+
+        function undo() {
+            notesArray.pop();
+            renderStaff();
+        }
+
+        function clearStaff() {
+            notesArray = [];
+            stopPlayback();
+            renderStaff();
+        }
+
+        function changeClef() {
+            currentClef = document.getElementById("clef-select").value;
+            
+            if (currentClef === 'treble') {
+                setOctave(4, document.getElementById('octave-4-btn'));
+            } else if (currentClef === 'alto') {
+                setOctave(4, document.getElementById('octave-4-btn'));
+            } else if (currentClef === 'bass') {
+                setOctave(3, document.getElementById('octave-3-btn'));
+            }
+
+            updateStringButtons();
+            renderStaff();
+        }
+
+        // Metrônomo
+        function updateBPM(val) {
+            bpm = parseInt(val);
+            document.getElementById('bpm-display').textContent = `${bpm} BPM`;
+            if (isMetronomeOn) {
+                stopMetronome();
+                startMetronome();
+            }
+        }
+
+        function toggleMetronome() {
+            if (isMetronomeOn) {
+                stopMetronome();
+            } else {
+                startMetronome();
+            }
+        }
+
+        function startMetronome() {
+            isMetronomeOn = true;
+            document.getElementById('metro-btn').textContent = "Desligar";
+            document.getElementById('metro-btn').className = "bg-rose-600 hover:bg-rose-500 text-white px-2.5 py-1 rounded text-xs font-bold transition-all";
+            
+            const intervalMs = (60 / bpm) * 1000;
+            playClick();
+            metronomeInterval = setInterval(playClick, intervalMs);
+        }
+
+        function stopMetronome() {
+            isMetronomeOn = false;
+            clearInterval(metronomeInterval);
+            document.getElementById('metro-btn').textContent = "Ligar";
+            document.getElementById('metro-btn').className = "bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1 rounded text-xs font-bold transition-all";
+        }
+
+        function playClick() {
+            const ctx = getAudioContext();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(1000, ctx.currentTime);
+            gain.gain.setValueAtTime(0.3, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
+
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.05);
+
+            const pulseEl = document.getElementById('metro-pulse');
+            pulseEl.classList.remove('bg-indigo-800');
+            pulseEl.classList.add('bg-emerald-400');
+            setTimeout(() => {
+                pulseEl.classList.remove('bg-emerald-400');
+                pulseEl.classList.add('bg-indigo-800');
+            }, 100);
+        }
+
+        // Playback da Partitura
+        function togglePlay() {
+            if (isPlaying) {
+                stopPlayback();
+            } else {
+                startPlayback();
+            }
+        }
+
+        function startPlayback() {
+            const executableNotes = notesArray.filter(n => n.type === 'note' || n.type === 'rest');
+            if (executableNotes.length === 0) {
+                showMessage("Escreva algumas notas antes de tocar!");
+                return;
+            }
+
+            isPlaying = true;
+            document.getElementById('play-icon').textContent = "❚❚";
+            document.getElementById('play-text').textContent = "Pausar";
+            document.getElementById('play-btn').className = "bg-amber-500 hover:bg-amber-400 text-white px-3.5 py-1.5 rounded-lg font-bold text-xs sm:text-sm flex items-center gap-1.5 transition-all shadow-sm";
+
+            let noteIndex = 0;
+
+            function playNextNote() {
+                if (!isPlaying || noteIndex >= executableNotes.length) {
+                    stopPlayback();
+                    return;
+                }
+
+                const item = executableNotes[noteIndex];
+                const beats = durationBeats[item.duration] * (item.dot ? 1.5 : 1);
+                const durationSeconds = (beats * (60 / bpm));
+                const durationMs = durationSeconds * 1000;
+
+                if (item.type === 'note') {
+                    const freq = calculateExactFrequency(item.key, item.octave, item.accidental);
+                    playBowedStringNote(freq, durationSeconds, item.dynamic);
+                }
+
+                if (item.vfNoteObj && item.vfNoteObj.getSVGElement) {
+                    const el = item.vfNoteObj.getSVGElement();
+                    if (el) el.classList.add('playing-note');
+                    setTimeout(() => {
+                        if (el) el.classList.remove('playing-note');
+                    }, durationMs);
+                }
+
+                noteIndex++;
+                playbackTimeout = setTimeout(playNextNote, durationMs);
+            }
+
+            playNextNote();
+        }
+
+        function stopPlayback() {
+            isPlaying = false;
+            clearTimeout(playbackTimeout);
+            document.getElementById('play-icon').textContent = "▶";
+            document.getElementById('play-text').textContent = "Ouvir Partitura";
+            document.getElementById('play-btn').className = "bg-indigo-500 hover:bg-indigo-400 text-white px-3.5 py-1.5 rounded-lg font-bold text-xs sm:text-sm flex items-center gap-1.5 transition-all shadow-sm";
+            document.querySelectorAll('.playing-note').forEach(e => e.classList.remove('playing-note'));
+        }
+
+        // Importador de MusicXML
+        document.getElementById('musicxmlInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                try {
+                    const xmlText = evt.target.result;
+                    const parser = new DOMParser();
+                    const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+
+                    notesArray = [];
+                    const measureNodes = xmlDoc.getElementsByTagName("measure");
+
+                    if (measureNodes.length === 0) {
+                        showMessage("Nenhum compasso encontrado no arquivo MusicXML.");
+                        return;
+                    }
+
+                    for (let i = 0; i < measureNodes.length; i++) {
+                        let noteNodes = measureNodes[i].getElementsByTagName("note");
+
+                        for (let j = 0; j < noteNodes.length; j++) {
+                            let noteEl = noteNodes[j];
+                            let isRest = noteEl.getElementsByTagName("rest").length > 0;
+                            let typeEl = noteEl.getElementsByTagName("type")[0];
+                            
+                            let durationMap = { "whole": "w", "half": "h", "quarter": "q", "eighth": "8", "16th": "16", "32nd": "32" };
+                            let dur = typeEl && durationMap[typeEl.textContent] ? durationMap[typeEl.textContent] : "q";
+
+                            if (isRest) {
+                                notesArray.push({
+                                    type: 'rest',
+                                    duration: dur,
+                                    dot: noteEl.getElementsByTagName("dot").length > 0
+                                });
+                            } else {
+                                let pitchEl = noteEl.getElementsByTagName("pitch")[0];
+                                if (pitchEl) {
+                                    let step = pitchEl.getElementsByTagName("step")[0].textContent.toLowerCase();
+                                    let octave = parseInt(pitchEl.getElementsByTagName("octave")[0].textContent, 10);
+                                    let alterEl = pitchEl.getElementsByTagName("alter")[0];
+                                    let acc = null;
+                                    if (alterEl) {
+                                        if (alterEl.textContent === "1") acc = "#";
+                                        else if (alterEl.textContent === "-1") acc = "b";
+                                    }
+
+                                    notesArray.push({
+                                        type: 'note',
+                                        key: step,
+                                        octave: octave,
+                                        accidental: acc,
+                                        duration: dur,
+                                        dot: noteEl.getElementsByTagName("dot").length > 0,
+                                        staccato: false,
+                                        tieNext: false,
+                                        fingering: null,
+                                        stringInd: null,
+                                        dynamic: null
+                                    });
+                                }
+                            }
+                        }
+                    }
+
+                    renderStaff();
+                    showMessage("Partitura MusicXML importada com sucesso!");
+                } catch (err) {
+                    showMessage("Erro ao ler o arquivo MusicXML: " + err.message);
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        function savePDF() {
+            stopPlayback();
+            window.scrollTo(0, 0);
+            const container = document.getElementById('app-container');
+            const musicTitle = document.getElementById('music-title-input').value;
+            
+            const pdfTitleEl = document.getElementById('pdf-title');
+            if (musicTitle.trim() !== '') {
+                pdfTitleEl.textContent = musicTitle;
+                pdfTitleEl.classList.remove('hidden');
+            } else {
+                pdfTitleEl.classList.add('hidden');
+            }
+
+            container.classList.add('pdf-mode');
+            
+            const vfContainer = document.getElementById('vf-container');
+            const origWidth = vfContainer.style.width;
+            vfContainer.style.width = vfContainer.scrollWidth + "px";
+
+            const opt = {
+                margin:       10,
+                filename:     musicTitle ? `${musicTitle.replace(/\s+/g, '_')}.pdf` : 'Partitura_Estudo_Musical.pdf',
+                image:        { type: 'jpeg', quality: 1 },
+                html2canvas:  { scale: 2, useCORS: true },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
+            };
+
+            html2pdf().set(opt).from(container).save().then(() => {
+                container.classList.remove('pdf-mode');
+                pdfTitleEl.classList.add('hidden');
+                vfContainer.style.width = origWidth;
+            });
+        }
+
+        function renderStaff() {
+            const container = document.getElementById("vf-container");
+            container.innerHTML = "";
+            
+            const timeSig = document.getElementById("time-select").value;
+            const measuresPerLine = parseInt(document.getElementById("measures-select").value);
+            const tempoText = document.getElementById("tempo-select").value;
+            const maxBeats = getMaxBeats();
+            
+            const availableWidth = container.clientWidth > 100 ? container.clientWidth - 40 : 850;
+            const baseMeasureWidth = Math.max(160, Math.floor(availableWidth / measuresPerLine));
+
+            let measures = [];
+            let currentMeasure = { notes: [], repeatStart: false, repeatEnd: false, volta: null };
+            let currentBeats = 0;
+
+            for (let n of notesArray) {
+                if (n.type === 'repeat-start') {
+                    currentMeasure.repeatStart = true;
+                    continue;
+                }
+                if (n.type === 'repeat-end') {
+                    currentMeasure.repeatEnd = true;
+                    continue;
+                }
+                if (n.type === 'volta-1') {
+                    currentMeasure.volta = 1;
+                    continue;
+                }
+                if (n.type === 'volta-2') {
+                    currentMeasure.volta = 2;
+                    continue;
+                }
+
+                currentMeasure.notes.push(n);
+                currentBeats += durationBeats[n.duration] * (n.dot ? 1.5 : 1);
+                
+                if (currentBeats >= maxBeats - 0.001) {
+                    measures.push(currentMeasure);
+                    currentMeasure = { notes: [], repeatStart: false, repeatEnd: false, volta: null };
+                    currentBeats = 0;
+                }
+            }
+            if (currentMeasure.notes.length > 0 || currentMeasure.repeatStart || currentMeasure.repeatEnd || currentMeasure.volta) {
+                measures.push(currentMeasure);
+            }
+            if (measures.length === 0) {
+                measures.push({ notes: [], repeatStart: false, repeatEnd: false, volta: null });
+            }
+
+            let lines = [];
+            for (let i = 0; i < measures.length; i += measuresPerLine) {
+                lines.push(measures.slice(i, i + measuresPerLine));
+            }
+
+            lines.forEach((lineMeasures, lineIndex) => {
+                const lineDiv = document.createElement("div");
+                lineDiv.style.marginBottom = "10px";
+                lineDiv.style.display = "flex";
+                lineDiv.style.justifyContent = "center";
+                container.appendChild(lineDiv);
+
+                let totalLineWidth = lineMeasures.reduce((acc, _, idx) => acc + baseMeasureWidth + (idx === 0 ? 80 : 0), 20);
+
+                const renderer = new VF.Renderer(lineDiv, VF.Renderer.Backends.SVG);
+                renderer.resize(totalLineWidth, 170);
+                const context = renderer.getContext();
+
+                let xPos = 10;
+
+                for (let i = 0; i < lineMeasures.length; i++) {
+                    const measureData = lineMeasures[i];
+                    const isFirstMeasureOfLine = (i === 0);
+                    let mWidth = baseMeasureWidth;
+                    
+                    if (isFirstMeasureOfLine) mWidth += 80; 
+
+                    const stave = new VF.Stave(xPos, 50, mWidth);
+                    
+                    if (isFirstMeasureOfLine) {
+                        stave.addClef(currentClef).addTimeSignature(timeSig);
+                        if (lineIndex === 0) {
+                            stave.setTempo({ 
+                                name: tempoText.split('(')[0].trim(), 
+                                duration: 'q', 
+                                bpm: parseInt(tempoText.match(/\d+/)[0]) 
+                            }, -30);
+                        }
+                    }
+                    if (measureData.repeatStart) {
+                        stave.setBegBarType(VF.Barline.type.REPEAT_BEGIN);
+                    }
+                    if (measureData.repeatEnd) {
+                        stave.setEndBarType(VF.Barline.type.REPEAT_END);
+                    } else if (lineIndex === lines.length - 1 && i === lineMeasures.length - 1) {
+                        stave.setEndBarType(VF.Barline.type.END);
+                    }
+
+                    if (measureData.volta) {
+                        stave.setVoltaType(
+                            measureData.volta === 1 ? VF.Volta.type.BEGIN : VF.Volta.type.BEGIN_END,
+                            `${measureData.volta}.`,
+                            -5
+                        );
+                    }
+
+                    stave.setContext(context).draw();
+
+                    const measureNotes = measureData.notes;
+                    if (measureNotes && measureNotes.length > 0) {
+                        let tiePairs = [];
+                        const vfNotes = measureNotes.map((n, idx) => {
+                            let vfDuration = n.duration;
+                            if (n.dot) vfDuration += "d";
+
+                            if (n.type === 'rest') {
+                                const note = new VF.StaveNote({ keys: ["b/4"], duration: vfDuration + "r", clef: currentClef });
+                                if (n.dot) note.addDot(0);
+                                n.vfNoteObj = note;
+                                return note;
+                            } else {
+                                const keyStr = n.accidental && n.accidental !== 'n' 
+                                    ? `${n.key}${n.accidental}/${n.octave}` 
+                                    : `${n.key}/${n.octave}`;
+                                const note = new VF.StaveNote({ keys: [keyStr], duration: vfDuration, clef: currentClef });
+                                
+                                if (n.accidental) {
+                                    note.addAccidental(0, new VF.Accidental(n.accidental));
+                                }
+                                if (n.dot) {
+                                    note.addDot(0);
+                                }
+                                if (n.staccato) {
+                                    note.addModifier(0, new VF.Articulation('a.').setPosition(3));
+                                }
+                                if (n.bow) {
+                                    const artCode = n.bow === 'talao' ? 'am' : 'a|';
+                                    note.addModifier(0, new VF.Articulation(artCode).setPosition(3));
+                                }
+                                if (n.fingering) {
+                                    note.addModifier(0, new VF.StringNumber(n.fingering).setPosition(3));
+                                }
+                                if (n.stringInd) {
+                                    note.addModifier(0, new VF.Annotation(n.stringInd).setFont('sans-serif', 9, 'bold').setVerticalJustification(VF.Annotation.VerticalJustify.BOTTOM));
+                                }
+                                if (n.dynamic) {
+                                    note.addModifier(0, new VF.Annotation(n.dynamic).setFont('serif', 12, 'italic bold').setVerticalJustification(VF.Annotation.VerticalJustify.BOTTOM));
+                                }
+                                
+                                n.vfNoteObj = note;
+
+                                if (n.tieNext && idx < measureNotes.length - 1 && measureNotes[idx+1].type === 'note') {
+                                    tiePairs.push({ first: note, lastNoteIndex: idx + 1 });
+                                }
+                                return note;
+                            }
+                        });
+
+                        const voice = new VF.Voice({ num_beats: maxBeats, beat_value: 4 });
+                        voice.setMode(VF.Voice.Mode.SOFT);
+                        voice.addTickables(vfNotes);
+
+                        const formatter = new VF.Formatter().joinVoices([voice]).format([voice], mWidth - (isFirstMeasureOfLine ? 85 : 30));
+                        
+                        const beams = VF.Beam.generateBeams(vfNotes, {
+                            groups: timeSig === '6/8' ? [new VF.Fraction(3, 8)] : [new VF.Fraction(1, 4)],
+                            flat_beams: false
+                        });
+
+                        voice.draw(context, stave);
+                        beams.forEach(b => b.setContext(context).draw());
+
+                        tiePairs.forEach(tp => {
+                            const lastNoteObj = measureNotes[tp.lastNoteIndex].vfNoteObj;
+                            if (lastNoteObj) {
+                                const tie = new VF.StaveTie({
+                                    first_note: tp.first,
+                                    last_note: lastNoteObj,
+                                    first_indices: [0],
+                                    last_indices: [0]
+                                });
+                                tie.setContext(context).draw();
+                            }
+                        });
+                    }
+                    xPos += mWidth;
+                }
+            });
+        }
+
+        // Inicialização
+        updateStringButtons();
+        renderStaff();
+        window.addEventListener('resize', () => renderStaff());
+    </script>
+</body>
+</html>
