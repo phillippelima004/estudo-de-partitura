@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" class="transition-colors duration-300">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +7,12 @@
 
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Tailwind config for Dark Mode -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+    }
+  </script>
   <!-- VexFlow 3.0.9 para renderização de partitura -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/vexflow/3.0.9/vexflow-min.js"></script>
   <!-- html2pdf.js para exportação de PDF -->
@@ -17,7 +23,6 @@
   <style>
     body { 
       font-family: 'Inter', sans-serif; 
-      background-color: #f3f4f6; 
     }
     .staff-container { 
       width: 100%; 
@@ -31,8 +36,11 @@
       display: none !important; 
     }
     .pdf-mode { 
-      background-color: white; 
+      background-color: white !important; 
       padding: 20px; 
+    }
+    .pdf-mode * {
+        color: black !important;
     }
     
     .staff-container svg {
@@ -42,42 +50,72 @@
       margin: 0 auto;
     }
 
+    /* VexFlow Dark Mode adjustments */
+    .dark .staff-container svg path, 
+    .dark .staff-container svg text {
+        fill: #e2e8f0;
+        stroke: #e2e8f0;
+    }
+    .dark .staff-container svg .vf-stave path,
+    .dark .staff-container svg .vf-stave line {
+        fill: none;
+        stroke: #94a3b8;
+    }
+
     /* Estilo para destaque da nota durante o playback */
     .vf-notehead.playing-note path {
       fill: #4f46e5 !important;
       stroke: #4f46e5 !important;
       filter: drop-shadow(0px 0px 4px #818cf8);
     }
+    .dark .vf-notehead.playing-note path {
+      fill: #a5b4fc !important;
+      stroke: #a5b4fc !important;
+    }
+
     input[type="file"] {
       display: none;
     }
   </style>
 </head>
-<body class="min-h-screen text-gray-800 p-2 sm:p-6 flex flex-col items-center">
+<body class="min-h-screen text-gray-800 bg-gray-100 dark:bg-slate-900 dark:text-gray-100 p-2 sm:p-6 flex flex-col items-center transition-colors duration-300">
 
-    <div id="app-container" class="w-full max-w-6xl bg-white rounded-2xl shadow-xl p-4 sm:p-6">
+    <div id="app-container" class="w-full max-w-6xl bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-4 sm:p-6 transition-colors duration-300 border dark:border-slate-700">
         
         <!-- Cabeçalho e Ações Principais -->
-        <div class="flex flex-col sm:flex-row justify-between items-center mb-6 border-b pb-4 pdf-hide gap-3">
+        <div class="flex flex-col sm:flex-row justify-between items-center mb-6 border-b dark:border-slate-700 pb-4 pdf-hide gap-3">
             <div>
-                <h1 class="text-2xl font-extrabold text-indigo-700 tracking-tight" id="app-header-title">Estúdio de Música &amp; Partitura</h1>
-                <p class="text-xs text-gray-500 font-medium" id="app-header-subtitle">Clave de Dó (Viola), Sol (Violino) &amp; Fá (Violoncelo) • Caderno de Estudos</p>
+                <h1 class="text-2xl font-extrabold text-indigo-700 dark:text-indigo-400 tracking-tight" id="app-header-title">Estúdio de Música &amp; Partitura</h1>
+                <p class="text-xs text-gray-500 dark:text-gray-400 font-medium" id="app-header-subtitle">Clave de Dó (Viola), Sol (Violino) &amp; Fá (Violoncelo) • Caderno de Estudos</p>
             </div>
             <div class="flex flex-wrap gap-2 w-full sm:w-auto items-center justify-end">
-                <input type="text" id="music-title-input" placeholder="Título da Partitura / Exercício..." class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 flex-1 sm:w-60">
+                <input type="text" id="music-title-input" placeholder="Título da Partitura / Exercício..." class="border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 flex-1 sm:w-60 dark:bg-slate-700 dark:text-white">
                 
+                <button onclick="toggleDarkMode()" class="bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-semibold py-1.5 px-3 rounded-lg transition-colors shadow-sm text-sm shrink-0">
+                    <i class="fa-solid fa-moon" id="dark-mode-icon"></i>
+                </button>
+
+                <!-- Gestão de Projetos .estudo -->
+                <button onclick="saveProject()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-1.5 px-3 rounded-lg transition-colors shadow-sm text-sm shrink-0 flex items-center gap-1.5">
+                    <i class="fa-solid fa-floppy-disk"></i> Salvar Proj.
+                </button>
+                <label for="projectInput" class="bg-sky-600 hover:bg-sky-700 text-white font-semibold py-1.5 px-3 rounded-lg transition-colors shadow-sm text-sm cursor-pointer flex items-center gap-1.5">
+                    <i class="fa-solid fa-folder-open"></i> Abrir Proj.
+                </label>
+                <input type="file" id="projectInput" accept=".estudo">
+
                 <!-- Importador de MusicXML -->
                 <label for="musicxmlInput" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-1.5 px-3 rounded-lg transition-colors shadow-sm text-sm cursor-pointer flex items-center gap-1.5">
-                    <i class="fa-solid fa-file-import"></i> Importar XML
+                    <i class="fa-solid fa-file-import"></i> MusicXML
                 </label>
                 <input type="file" id="musicxmlInput" accept=".xml,.musicxml">
 
                 <button onclick="downloadWAV()" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold py-1.5 px-3 rounded-lg transition-colors shadow-sm text-sm shrink-0 flex items-center gap-1.5">
-                    <i class="fa-solid fa-file-audio"></i> Baixar Áudio (.WAV)
+                    <i class="fa-solid fa-file-audio"></i> WAV
                 </button>
 
                 <button onclick="savePDF()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-1.5 px-3 rounded-lg transition-colors shadow-sm text-sm shrink-0 flex items-center gap-1.5">
-                    <i class="fa-solid fa-file-pdf"></i> Salvar PDF
+                    <i class="fa-solid fa-file-pdf"></i> PDF
                 </button>
             </div>
         </div>
@@ -89,14 +127,13 @@
         <div id="message-box" class="hidden mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm text-center font-medium shadow-sm"></div>
 
         <!-- Painel de Áudio, Metrônomo e Playback -->
-        <div class="pdf-hide bg-indigo-900 text-white p-3.5 sm:p-4 rounded-xl mb-6 shadow-md">
+        <div class="pdf-hide bg-indigo-900 dark:bg-slate-900 text-white p-3.5 sm:p-4 rounded-xl mb-6 shadow-md border dark:border-slate-700">
             <div class="flex flex-wrap items-center justify-between gap-4">
-                
                 <!-- Playback Áudio -->
                 <div class="flex items-center gap-2">
                     <span class="text-xs font-bold uppercase tracking-wider text-indigo-300 mr-1">Reprodução:</span>
                     <button id="play-btn" onclick="togglePlay()" class="bg-indigo-500 hover:bg-indigo-400 text-white px-3.5 py-1.5 rounded-lg font-bold text-xs sm:text-sm flex items-center gap-1.5 transition-all shadow-sm">
-                        <span id="play-icon">▶</span> <span id="play-text">Ouvir Partitura</span>
+                        <span id="play-icon">▶</span> <span id="play-text">Ouvir</span>
                     </button>
                     <button onclick="stopPlayback()" class="bg-indigo-800 hover:bg-indigo-700 text-indigo-200 px-3 py-1.5 rounded-lg font-bold text-xs sm:text-sm transition-all">
                         ■ Parar
@@ -119,7 +156,7 @@
                 <!-- Andamento da Música -->
                 <div class="flex items-center gap-2">
                     <label class="text-xs font-bold uppercase text-indigo-300">Andamento:</label>
-                    <select id="tempo-select" onchange="renderStaff()" class="bg-indigo-800 text-white text-xs rounded border border-indigo-700 px-2 py-1 focus:outline-none">
+                    <select id="tempo-select" onchange="renderStaff()" class="bg-indigo-800 dark:bg-slate-800 text-white text-xs rounded border border-indigo-700 px-2 py-1 focus:outline-none">
                         <option value="Moderato (♩ = 80)" selected>Moderato (♩ = 80)</option>
                         <option value="Allegro (♩ = 120)">Allegro (♩ = 120)</option>
                         <option value="Andante (♩ = 60)">Andante (♩ = 60)</option>
@@ -127,38 +164,37 @@
                         <option value="Presto (♩ = 140)">Presto (♩ = 140)</option>
                     </select>
                 </div>
-
             </div>
         </div>
 
         <!-- Barra de Configurações de Pauta, Tonalidade e Afinação -->
-        <div class="flex flex-wrap justify-center gap-3 mb-4 pdf-hide bg-gray-50 p-3 sm:p-4 rounded-xl border border-gray-200 items-center">
+        <div class="flex flex-wrap justify-center gap-3 mb-4 pdf-hide bg-gray-50 dark:bg-slate-700 p-3 sm:p-4 rounded-xl border border-gray-200 dark:border-slate-600 items-center">
             <div class="flex flex-col items-center">
-                <label class="text-xs font-semibold text-gray-500 uppercase mb-1">Clave / Instrumento</label>
-                <select id="clef-select" onchange="changeClef()" class="border border-gray-300 rounded-lg px-2 py-1 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-indigo-900">
-                    <option value="alto" selected>Clave de Dó 3ª lin (Viola)</option>
-                    <option value="treble">Clave de Sol (Violino)</option>
-                    <option value="bass">Clave de Fá (Violoncelo)</option>
+                <label class="text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase mb-1">Clave</label>
+                <select id="clef-select" onchange="changeClef()" class="border border-gray-300 dark:border-slate-500 rounded-lg px-2 py-1 text-sm bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-indigo-900 dark:text-indigo-300">
+                    <option value="alto" selected>C 3ª (Viola)</option>
+                    <option value="treble">G (Violino)</option>
+                    <option value="bass">F (Violoncelo)</option>
                 </select>
             </div>
             
             <div class="flex flex-col items-center">
-                <label class="text-xs font-semibold text-gray-500 uppercase mb-1">Armadura (Tom)</label>
-                <select id="key-select" onchange="renderStaff()" class="border border-gray-300 rounded-lg px-2 py-1 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-gray-800">
-                    <option value="C" selected>Dó Maior / Lá menor (C)</option>
-                    <option value="G">Sol Maior (1♯ - Fá♯)</option>
-                    <option value="D">Ré Maior (2♯ - Fá♯, Dó♯)</option>
-                    <option value="A">Lá Maior (3♯ - Fá♯, Dó♯, Sol♯)</option>
-                    <option value="E">Mi Maior (4♯)</option>
-                    <option value="F">Fá Maior (1♭ - Si♭)</option>
-                    <option value="Bb">Si♭ Maior (2♭ - Si♭, Mi♭)</option>
-                    <option value="Eb">Mi♭ Maior (3♭)</option>
+                <label class="text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase mb-1">Armadura</label>
+                <select id="key-select" onchange="renderStaff()" class="border border-gray-300 dark:border-slate-500 rounded-lg px-2 py-1 text-sm bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium text-gray-800 dark:text-gray-200">
+                    <option value="C" selected>C (Dó M / Lá m)</option>
+                    <option value="G">G (1♯)</option>
+                    <option value="D">D (2♯)</option>
+                    <option value="A">A (3♯)</option>
+                    <option value="E">E (4♯)</option>
+                    <option value="F">F (1♭)</option>
+                    <option value="Bb">Bb (2♭)</option>
+                    <option value="Eb">Eb (3♭)</option>
                 </select>
             </div>
 
             <div class="flex flex-col items-center">
-                <label class="text-xs font-semibold text-gray-500 uppercase mb-1">Fórmula</label>
-                <select id="time-select" onchange="renderStaff()" class="border border-gray-300 rounded-lg px-2 py-1 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <label class="text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase mb-1">Fórmula</label>
+                <select id="time-select" onchange="renderStaff()" class="border border-gray-300 dark:border-slate-500 rounded-lg px-2 py-1 text-sm bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:text-gray-200">
                     <option value="4/4" selected>4/4</option>
                     <option value="3/4">3/4</option>
                     <option value="2/4">2/4</option>
@@ -167,32 +203,39 @@
             </div>
 
             <div class="flex flex-col items-center">
-                <label class="text-xs font-semibold text-gray-500 uppercase mb-1">Compassos/Linha</label>
-                <select id="measures-select" onchange="renderStaff()" class="border border-gray-300 rounded-lg px-2 py-1 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    <option value="2">2 Comp.</option>
-                    <option value="3">3 Comp.</option>
-                    <option value="4" selected>4 Comp.</option>
-                    <option value="5">5 Comp.</option>
-                    <option value="6">6 Comp.</option>
+                <label class="text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase mb-1">Comp/Linha</label>
+                <select id="measures-select" onchange="renderStaff()" class="border border-gray-300 dark:border-slate-500 rounded-lg px-2 py-1 text-sm bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:text-gray-200">
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4" selected>4</option>
+                    <option value="5">5</option>
+                    <option value="6">6</option>
                 </select>
             </div>
 
             <!-- Tom de Referência / Afinador Corda Solta -->
-            <div class="flex flex-col items-center pl-2 border-l border-gray-300">
-                <label class="text-xs font-semibold text-indigo-700 uppercase mb-1"><i class="fa-solid fa-tuning-fork"></i> Cordas Soltas</label>
+            <div class="flex flex-col items-center pl-2 border-l border-gray-300 dark:border-slate-500">
+                <label class="text-xs font-semibold text-indigo-700 dark:text-indigo-400 uppercase mb-1"><i class="fa-solid fa-tuning-fork"></i> Afinação</label>
                 <div id="tuner-buttons" class="flex gap-1"></div>
             </div>
         </div>
 
         <!-- Área da Partitura (Renderização VexFlow) -->
-        <div class="w-full bg-white rounded-xl shadow-inner border border-gray-200 p-2 sm:p-4 mb-4 staff-container min-h-[200px]" id="vf-container">
-            <!-- Partitura renderizada aqui -->
+        <div class="w-full bg-white dark:bg-slate-800 rounded-xl shadow-inner border border-gray-200 dark:border-slate-700 p-2 sm:p-4 mb-4 staff-container min-h-[200px]" id="vf-container">
+            <!-- Partitura renderizada aqui num ÚNICO SVG para permitir ligaduras globais -->
         </div>
 
         <!-- Guia do Espelho do Instrumento (Apoio Visual) -->
         <div class="pdf-hide mb-6 bg-slate-900 text-white p-3 rounded-xl border border-slate-700 shadow-inner">
             <div class="flex justify-between items-center mb-2">
-                <span class="text-xs font-bold uppercase text-slate-300 tracking-wide"><i class="fa-solid fa-guitar"></i> Espelho do Instrumento (1ª Posição)</span>
+                <span class="text-xs font-bold uppercase text-slate-300 tracking-wide flex items-center gap-2">
+                    <i class="fa-solid fa-guitar"></i> Espelho do Instrumento 
+                    <select id="position-select" onchange="forceFingerboardUpdate()" class="bg-slate-800 text-white text-xs px-1 py-0.5 rounded border border-slate-600 focus:outline-none">
+                        <option value="1">1ª Posição</option>
+                        <option value="3">3ª Posição</option>
+                        <option value="5">5ª Posição</option>
+                    </select>
+                </span>
                 <span id="fingerboard-info" class="text-xs text-indigo-300 font-semibold">Insira uma nota para ver a posição</span>
             </div>
             <div class="relative w-full h-20 bg-gradient-to-r from-[#3e2312] to-[#251105] rounded border-2 border-amber-950 overflow-hidden shadow-inner" id="fretboard">
@@ -216,93 +259,93 @@
         <!-- Painel de Ferramentas de Escrita -->
         <div class="pdf-hide space-y-3.5">
             
-            <!-- Controle de Região / Oitava -->
-            <div class="flex flex-wrap items-center justify-center gap-2 bg-indigo-50 p-2.5 rounded-xl border border-indigo-100">
-                <span class="text-xs font-bold uppercase text-indigo-700 tracking-wide mr-1">Região / Oitava:</span>
-                <button onclick="setOctave(2, this)" id="octave-2-btn" class="octave-btn px-3 py-1 bg-white hover:bg-indigo-100 text-indigo-900 border border-indigo-200 text-xs font-semibold rounded-lg shadow-sm transition-all">
-                    Oitava 2 (C2)
-                </button>
-                <button onclick="setOctave(3, this)" id="octave-3-btn" class="octave-btn px-3 py-1 bg-white hover:bg-indigo-100 text-indigo-900 border border-indigo-200 text-xs font-semibold rounded-lg shadow-sm transition-all">
-                    Oitava 3 (C3)
-                </button>
-                <button onclick="setOctave(4, this)" id="octave-4-btn" class="octave-btn px-3 py-1 bg-indigo-600 text-white border border-indigo-600 text-xs font-semibold rounded-lg shadow-sm transition-all">
-                    Oitava 4 (C4)
-                </button>
-                <button onclick="setOctave(5, this)" id="octave-5-btn" class="octave-btn px-3 py-1 bg-white hover:bg-indigo-100 text-indigo-900 border border-indigo-200 text-xs font-semibold rounded-lg shadow-sm transition-all">
-                    Oitava 5 (C5)
-                </button>
-                <button onclick="setOctave(6, this)" id="octave-6-btn" class="octave-btn px-3 py-1 bg-white hover:bg-indigo-100 text-indigo-900 border border-indigo-200 text-xs font-semibold rounded-lg shadow-sm transition-all">
-                    Oitava 6 (C6)
+            <!-- Controle de Região / Oitava e Acorde -->
+            <div class="flex flex-wrap items-center justify-center gap-2 bg-indigo-50 dark:bg-slate-700/50 p-2.5 rounded-xl border border-indigo-100 dark:border-slate-600">
+                <span class="text-xs font-bold uppercase text-indigo-700 dark:text-indigo-300 tracking-wide mr-1">Região:</span>
+                <button onclick="setOctave(2, this)" id="octave-2-btn" class="octave-btn px-3 py-1 bg-white dark:bg-slate-800 text-indigo-900 dark:text-indigo-200 border border-indigo-200 dark:border-slate-500 text-xs font-semibold rounded-lg shadow-sm transition-all">Oitava 2</button>
+                <button onclick="setOctave(3, this)" id="octave-3-btn" class="octave-btn px-3 py-1 bg-white dark:bg-slate-800 text-indigo-900 dark:text-indigo-200 border border-indigo-200 dark:border-slate-500 text-xs font-semibold rounded-lg shadow-sm transition-all">Oitava 3</button>
+                <button onclick="setOctave(4, this)" id="octave-4-btn" class="octave-btn px-3 py-1 bg-indigo-600 text-white border border-indigo-600 text-xs font-semibold rounded-lg shadow-sm transition-all">Oitava 4</button>
+                <button onclick="setOctave(5, this)" id="octave-5-btn" class="octave-btn px-3 py-1 bg-white dark:bg-slate-800 text-indigo-900 dark:text-indigo-200 border border-indigo-200 dark:border-slate-500 text-xs font-semibold rounded-lg shadow-sm transition-all">Oitava 5</button>
+                <button onclick="setOctave(6, this)" id="octave-6-btn" class="octave-btn px-3 py-1 bg-white dark:bg-slate-800 text-indigo-900 dark:text-indigo-200 border border-indigo-200 dark:border-slate-500 text-xs font-semibold rounded-lg shadow-sm transition-all">Oitava 6</button>
+
+                <div class="w-px h-6 bg-indigo-200 dark:bg-slate-500 mx-2"></div>
+                
+                <button id="chord-mode-btn" onclick="toggleChordMode()" class="px-3 py-1 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-500 text-xs font-bold rounded-lg shadow-sm transition-all flex items-center gap-1">
+                    <i class="fa-solid fa-layer-group"></i> Modo Acorde
                 </button>
             </div>
 
-            <!-- Durações -->
-            <div class="flex flex-wrap justify-center gap-1.5 sm:gap-2">
-                <button onclick="setDuration('w', this)" class="dur-btn bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-1 px-2.5 rounded-md text-xs sm:text-sm">Semibreve [1]</button>
-                <button onclick="setDuration('h', this)" class="dur-btn bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-1 px-2.5 rounded-md text-xs sm:text-sm">Mínima [2]</button>
-                <button onclick="setDuration('q', this)" class="dur-btn bg-indigo-500 hover:bg-indigo-600 text-white font-medium py-1 px-2.5 rounded-md text-xs sm:text-sm shadow-md">Semínima [4]</button>
-                <button onclick="setDuration('8', this)" class="dur-btn bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-1 px-2.5 rounded-md text-xs sm:text-sm">Colcheia [8]</button>
-                <button onclick="setDuration('16', this)" class="dur-btn bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-1 px-2.5 rounded-md text-xs sm:text-sm">Semicolcheia</button>
-                <button onclick="setDuration('32', this)" class="dur-btn bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-1 px-2.5 rounded-md text-xs sm:text-sm">Fusa</button>
+            <!-- Durações e Texto-->
+            <div class="flex flex-wrap justify-center items-center gap-1.5 sm:gap-2">
+                <button onclick="setDuration('w', this)" class="dur-btn bg-gray-100 dark:bg-slate-700 text-gray-800 dark:text-gray-200 font-medium py-1 px-2.5 rounded-md text-xs sm:text-sm border border-transparent">Semibreve [1]</button>
+                <button onclick="setDuration('h', this)" class="dur-btn bg-gray-100 dark:bg-slate-700 text-gray-800 dark:text-gray-200 font-medium py-1 px-2.5 rounded-md text-xs sm:text-sm border border-transparent">Mínima [2]</button>
+                <button onclick="setDuration('q', this)" class="dur-btn bg-indigo-500 text-white font-medium py-1 px-2.5 rounded-md text-xs sm:text-sm shadow-md border border-transparent">Semínima [4]</button>
+                <button onclick="setDuration('8', this)" class="dur-btn bg-gray-100 dark:bg-slate-700 text-gray-800 dark:text-gray-200 font-medium py-1 px-2.5 rounded-md text-xs sm:text-sm border border-transparent">Colcheia [8]</button>
+                <button onclick="setDuration('16', this)" class="dur-btn bg-gray-100 dark:bg-slate-700 text-gray-800 dark:text-gray-200 font-medium py-1 px-2.5 rounded-md text-xs sm:text-sm border border-transparent">Semicolcheia</button>
+                
+                <div class="flex items-center ml-2 border dark:border-slate-600 rounded bg-white dark:bg-slate-800 overflow-hidden">
+                    <span class="px-2 text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-slate-700 py-1.5">Texto:</span>
+                    <input type="text" id="annotation-input" placeholder="Ex: ponta, staccato..." class="text-xs px-2 py-1.5 w-32 focus:outline-none dark:bg-slate-800 dark:text-white">
+                </div>
             </div>
 
             <!-- Modificadores Musicalmente Ricos -->
             <div class="flex flex-wrap justify-center gap-1.5 sm:gap-2">
-                <button id="sharp-btn" onclick="toggleAccidental('#')" class="text-xs sm:text-sm bg-red-50 hover:bg-red-100 text-red-800 font-medium py-1 px-2.5 rounded-full border border-red-200">Sustenido (#)</button>
-                <button id="flat-btn" onclick="toggleAccidental('b')" class="text-xs sm:text-sm bg-red-50 hover:bg-red-100 text-red-800 font-medium py-1 px-2.5 rounded-full border border-red-200">Bemol (b)</button>
-                <button id="natural-btn" onclick="toggleAccidental('n')" class="text-xs sm:text-sm bg-red-50 hover:bg-red-100 text-red-800 font-medium py-1 px-2.5 rounded-full border border-red-200">Bequadro (♮)</button>
+                <button id="sharp-btn" onclick="toggleAccidental('#')" class="text-xs sm:text-sm bg-red-50 dark:bg-red-900/30 text-red-800 dark:text-red-300 font-medium py-1 px-2.5 rounded-full border border-red-200 dark:border-red-800">Sustenido (#)</button>
+                <button id="flat-btn" onclick="toggleAccidental('b')" class="text-xs sm:text-sm bg-red-50 dark:bg-red-900/30 text-red-800 dark:text-red-300 font-medium py-1 px-2.5 rounded-full border border-red-200 dark:border-red-800">Bemol (b)</button>
+                <button id="natural-btn" onclick="toggleAccidental('n')" class="text-xs sm:text-sm bg-red-50 dark:bg-red-900/30 text-red-800 dark:text-red-300 font-medium py-1 px-2.5 rounded-full border border-red-200 dark:border-red-800">Bequadro (♮)</button>
                 
-                <button id="bow-talao-btn" onclick="toggleBow('talao')" class="text-xs sm:text-sm bg-blue-50 hover:bg-blue-100 text-blue-800 font-medium py-1 px-2.5 rounded-full border border-blue-200">Talão (⊓)</button>
-                <button id="bow-ponta-btn" onclick="toggleBow('ponta')" class="text-xs sm:text-sm bg-blue-50 hover:bg-blue-100 text-blue-800 font-medium py-1 px-2.5 rounded-full border border-blue-200">Ponta (∨)</button>
+                <button id="bow-talao-btn" onclick="toggleBow('talao')" class="text-xs sm:text-sm bg-blue-50 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 font-medium py-1 px-2.5 rounded-full border border-blue-200 dark:border-blue-800">Talão (⊓)</button>
+                <button id="bow-ponta-btn" onclick="toggleBow('ponta')" class="text-xs sm:text-sm bg-blue-50 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 font-medium py-1 px-2.5 rounded-full border border-blue-200 dark:border-blue-800">Ponta (∨)</button>
                 
-                <button id="dot-btn" onclick="toggleDot()" class="text-xs sm:text-sm bg-yellow-50 hover:bg-yellow-100 text-yellow-800 font-medium py-1 px-2.5 rounded-full border border-yellow-200">Ponto (.)</button>
-                <button id="staccato-btn" onclick="toggleStaccato()" class="text-xs sm:text-sm bg-pink-50 hover:bg-pink-100 text-pink-800 font-medium py-1 px-2.5 rounded-full border border-pink-200">Staccato</button>
-                <button id="tie-btn" onclick="toggleTie()" class="text-xs sm:text-sm bg-teal-50 hover:bg-teal-100 text-teal-800 font-medium py-1 px-2.5 rounded-full border border-teal-200">Ligadura</button>
+                <button id="dot-btn" onclick="toggleDot()" class="text-xs sm:text-sm bg-yellow-50 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 font-medium py-1 px-2.5 rounded-full border border-yellow-200 dark:border-yellow-800">Ponto (.)</button>
+                <button id="staccato-btn" onclick="toggleStaccato()" class="text-xs sm:text-sm bg-pink-50 dark:bg-pink-900/30 text-pink-800 dark:text-pink-300 font-medium py-1 px-2.5 rounded-full border border-pink-200 dark:border-pink-800">Staccato</button>
+                <!-- Multi-note Slur / Ligadura Button -->
+                <button id="tie-btn" onclick="toggleTie()" class="text-xs sm:text-sm bg-teal-50 dark:bg-teal-900/30 text-teal-800 dark:text-teal-300 font-medium py-1 px-2.5 rounded-full border border-teal-200 dark:border-teal-800">Ligadura</button>
             </div>
 
             <!-- Dedilhados & Cordas do Instrumento -->
-            <div class="flex flex-wrap justify-center items-center gap-1.5 sm:gap-2 bg-amber-50/70 p-2 rounded-xl border border-amber-200/60">
-                <span class="text-xs font-bold uppercase text-amber-800 mr-1">Dedilhado / Corda:</span>
-                <button id="fing-0" onclick="toggleFingering('0')" class="fing-btn text-xs bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold px-2 py-0.5 rounded shadow-sm">0 (Solta)</button>
-                <button id="fing-1" onclick="toggleFingering('1')" class="fing-btn text-xs bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold px-2 py-0.5 rounded shadow-sm">1º Dedo</button>
-                <button id="fing-2" onclick="toggleFingering('2')" class="fing-btn text-xs bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold px-2 py-0.5 rounded shadow-sm">2º Dedo</button>
-                <button id="fing-3" onclick="toggleFingering('3')" class="fing-btn text-xs bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold px-2 py-0.5 rounded shadow-sm">3º Dedo</button>
-                <button id="fing-4" onclick="toggleFingering('4')" class="fing-btn text-xs bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold px-2 py-0.5 rounded shadow-sm">4º Dedo</button>
+            <div class="flex flex-wrap justify-center items-center gap-1.5 sm:gap-2 bg-amber-50/70 dark:bg-amber-900/20 p-2 rounded-xl border border-amber-200/60 dark:border-amber-800/50">
+                <span class="text-xs font-bold uppercase text-amber-800 dark:text-amber-500 mr-1">Dedilhado / Corda:</span>
+                <button id="fing-0" onclick="toggleFingering('0')" class="fing-btn text-xs bg-white dark:bg-slate-800 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700 font-bold px-2 py-0.5 rounded shadow-sm">0 (Solta)</button>
+                <button id="fing-1" onclick="toggleFingering('1')" class="fing-btn text-xs bg-white dark:bg-slate-800 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700 font-bold px-2 py-0.5 rounded shadow-sm">1º</button>
+                <button id="fing-2" onclick="toggleFingering('2')" class="fing-btn text-xs bg-white dark:bg-slate-800 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700 font-bold px-2 py-0.5 rounded shadow-sm">2º</button>
+                <button id="fing-3" onclick="toggleFingering('3')" class="fing-btn text-xs bg-white dark:bg-slate-800 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700 font-bold px-2 py-0.5 rounded shadow-sm">3º</button>
+                <button id="fing-4" onclick="toggleFingering('4')" class="fing-btn text-xs bg-white dark:bg-slate-800 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700 font-bold px-2 py-0.5 rounded shadow-sm">4º</button>
 
-                <div class="h-4 w-[1px] bg-amber-300 mx-1"></div>
-
+                <div class="h-4 w-[1px] bg-amber-300 dark:bg-amber-700 mx-1"></div>
                 <div id="string-buttons-container" class="flex items-center gap-1.5"></div>
             </div>
 
             <!-- Dinâmicas Musicais -->
-            <div class="flex flex-wrap justify-center items-center gap-1.5 bg-purple-50 p-2 rounded-xl border border-purple-100">
-                <span class="text-xs font-bold uppercase text-purple-800 mr-1">Dinâmica:</span>
-                <button id="dyn-p" onclick="toggleDynamic('p')" class="dyn-btn text-xs italic font-serif bg-white hover:bg-purple-100 text-purple-900 border border-purple-200 px-2.5 py-0.5 rounded shadow-sm">p</button>
-                <button id="dyn-mp" onclick="toggleDynamic('mp')" class="dyn-btn text-xs italic font-serif bg-white hover:bg-purple-100 text-purple-900 border border-purple-200 px-2.5 py-0.5 rounded shadow-sm">mp</button>
-                <button id="dyn-mf" onclick="toggleDynamic('mf')" class="dyn-btn text-xs italic font-serif bg-white hover:bg-purple-100 text-purple-900 border border-purple-200 px-2.5 py-0.5 rounded shadow-sm">mf</button>
-                <button id="dyn-f" onclick="toggleDynamic('f')" class="dyn-btn text-xs italic font-serif bg-white hover:bg-purple-100 text-purple-900 border border-purple-200 px-2.5 py-0.5 rounded shadow-sm">f</button>
-                <button id="dyn-ff" onclick="toggleDynamic('ff')" class="dyn-btn text-xs italic font-serif bg-white hover:bg-purple-100 text-purple-900 border border-purple-200 px-2.5 py-0.5 rounded shadow-sm">ff</button>
+            <div class="flex flex-wrap justify-center items-center gap-1.5 bg-purple-50 dark:bg-purple-900/20 p-2 rounded-xl border border-purple-100 dark:border-purple-800/50">
+                <span class="text-xs font-bold uppercase text-purple-800 dark:text-purple-400 mr-1">Dinâmica:</span>
+                <button id="dyn-p" onclick="toggleDynamic('p')" class="dyn-btn text-xs italic font-serif bg-white dark:bg-slate-800 text-purple-900 dark:text-purple-300 border border-purple-200 dark:border-purple-800 px-2.5 py-0.5 rounded shadow-sm">p</button>
+                <button id="dyn-mp" onclick="toggleDynamic('mp')" class="dyn-btn text-xs italic font-serif bg-white dark:bg-slate-800 text-purple-900 dark:text-purple-300 border border-purple-200 dark:border-purple-800 px-2.5 py-0.5 rounded shadow-sm">mp</button>
+                <button id="dyn-mf" onclick="toggleDynamic('mf')" class="dyn-btn text-xs italic font-serif bg-white dark:bg-slate-800 text-purple-900 dark:text-purple-300 border border-purple-200 dark:border-purple-800 px-2.5 py-0.5 rounded shadow-sm">mf</button>
+                <button id="dyn-f" onclick="toggleDynamic('f')" class="dyn-btn text-xs italic font-serif bg-white dark:bg-slate-800 text-purple-900 dark:text-purple-300 border border-purple-200 dark:border-purple-800 px-2.5 py-0.5 rounded shadow-sm">f</button>
+                <button id="dyn-ff" onclick="toggleDynamic('ff')" class="dyn-btn text-xs italic font-serif bg-white dark:bg-slate-800 text-purple-900 dark:text-purple-300 border border-purple-200 dark:border-purple-800 px-2.5 py-0.5 rounded shadow-sm">ff</button>
             </div>
 
             <!-- Inserção de Notas e Estruturas -->
             <div class="flex flex-wrap justify-center gap-1.5 sm:gap-2">
-                <button onclick="addNote('c')" class="note-btn min-w-[42px] h-10 bg-indigo-100 hover:bg-indigo-200 text-indigo-900 font-bold rounded-lg shadow-sm border border-indigo-200 text-xs sm:text-sm px-1.5" data-note="c">Dó4 [C]</button>
-                <button onclick="addNote('d')" class="note-btn min-w-[42px] h-10 bg-indigo-100 hover:bg-indigo-200 text-indigo-900 font-bold rounded-lg shadow-sm border border-indigo-200 text-xs sm:text-sm px-1.5" data-note="d">Ré4 [D]</button>
-                <button onclick="addNote('e')" class="note-btn min-w-[42px] h-10 bg-indigo-100 hover:bg-indigo-200 text-indigo-900 font-bold rounded-lg shadow-sm border border-indigo-200 text-xs sm:text-sm px-1.5" data-note="e">Mi4 [E]</button>
-                <button onclick="addNote('f')" class="note-btn min-w-[42px] h-10 bg-indigo-100 hover:bg-indigo-200 text-indigo-900 font-bold rounded-lg shadow-sm border border-indigo-200 text-xs sm:text-sm px-1.5" data-note="f">Fá4 [F]</button>
-                <button onclick="addNote('g')" class="note-btn min-w-[42px] h-10 bg-indigo-100 hover:bg-indigo-200 text-indigo-900 font-bold rounded-lg shadow-sm border border-indigo-200 text-xs sm:text-sm px-1.5" data-note="g">Sol4 [G]</button>
-                <button onclick="addNote('a')" class="note-btn min-w-[42px] h-10 bg-indigo-100 hover:bg-indigo-200 text-indigo-900 font-bold rounded-lg shadow-sm border border-indigo-200 text-xs sm:text-sm px-1.5" data-note="a">Lá4 [A]</button>
-                <button onclick="addNote('b')" class="note-btn min-w-[42px] h-10 bg-indigo-100 hover:bg-indigo-200 text-indigo-900 font-bold rounded-lg shadow-sm border border-indigo-200 text-xs sm:text-sm px-1.5" data-note="b">Si4 [B]</button>
+                <button onclick="addNote('c')" class="note-btn min-w-[42px] h-10 bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-900 dark:hover:bg-indigo-800 text-indigo-900 dark:text-indigo-100 font-bold rounded-lg shadow-sm border border-indigo-200 dark:border-indigo-700 text-xs sm:text-sm px-1.5" data-note="c">Dó4 [C]</button>
+                <button onclick="addNote('d')" class="note-btn min-w-[42px] h-10 bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-900 dark:hover:bg-indigo-800 text-indigo-900 dark:text-indigo-100 font-bold rounded-lg shadow-sm border border-indigo-200 dark:border-indigo-700 text-xs sm:text-sm px-1.5" data-note="d">Ré4 [D]</button>
+                <button onclick="addNote('e')" class="note-btn min-w-[42px] h-10 bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-900 dark:hover:bg-indigo-800 text-indigo-900 dark:text-indigo-100 font-bold rounded-lg shadow-sm border border-indigo-200 dark:border-indigo-700 text-xs sm:text-sm px-1.5" data-note="e">Mi4 [E]</button>
+                <button onclick="addNote('f')" class="note-btn min-w-[42px] h-10 bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-900 dark:hover:bg-indigo-800 text-indigo-900 dark:text-indigo-100 font-bold rounded-lg shadow-sm border border-indigo-200 dark:border-indigo-700 text-xs sm:text-sm px-1.5" data-note="f">Fá4 [F]</button>
+                <button onclick="addNote('g')" class="note-btn min-w-[42px] h-10 bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-900 dark:hover:bg-indigo-800 text-indigo-900 dark:text-indigo-100 font-bold rounded-lg shadow-sm border border-indigo-200 dark:border-indigo-700 text-xs sm:text-sm px-1.5" data-note="g">Sol4 [G]</button>
+                <button onclick="addNote('a')" class="note-btn min-w-[42px] h-10 bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-900 dark:hover:bg-indigo-800 text-indigo-900 dark:text-indigo-100 font-bold rounded-lg shadow-sm border border-indigo-200 dark:border-indigo-700 text-xs sm:text-sm px-1.5" data-note="a">Lá4 [A]</button>
+                <button onclick="addNote('b')" class="note-btn min-w-[42px] h-10 bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-900 dark:hover:bg-indigo-800 text-indigo-900 dark:text-indigo-100 font-bold rounded-lg shadow-sm border border-indigo-200 dark:border-indigo-700 text-xs sm:text-sm px-1.5" data-note="b">Si4 [B]</button>
                 
-                <button onclick="addRest()" class="px-3 h-10 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold rounded-lg shadow-sm text-xs sm:text-sm">Pausa</button>
+                <button onclick="addRest()" class="px-3 h-10 bg-gray-200 hover:bg-gray-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-gray-800 dark:text-gray-100 font-bold rounded-lg shadow-sm text-xs sm:text-sm border border-transparent">Pausa</button>
                 
-                <div class="h-10 w-[1px] bg-gray-300 mx-0.5"></div>
+                <div class="h-10 w-[1px] bg-gray-300 dark:bg-slate-600 mx-0.5"></div>
 
                 <!-- Ritornelos e Voltas -->
-                <button onclick="addRepeatStart()" class="px-2.5 h-10 bg-purple-100 hover:bg-purple-200 text-purple-900 font-bold rounded-lg shadow-sm border border-purple-200 text-xs sm:text-sm">|: Início</button>
-                <button onclick="addRepeatEnd()" class="px-2.5 h-10 bg-purple-100 hover:bg-purple-200 text-purple-900 font-bold rounded-lg shadow-sm border border-purple-200 text-xs sm:text-sm">Fim :|</button>
-                <button onclick="addVolta(1)" class="px-2.5 h-10 bg-indigo-100 hover:bg-indigo-200 text-indigo-900 font-bold rounded-lg shadow-sm border border-indigo-200 text-xs sm:text-sm">1ª Vez</button>
-                <button onclick="addVolta(2)" class="px-2.5 h-10 bg-indigo-100 hover:bg-indigo-200 text-indigo-900 font-bold rounded-lg shadow-sm border border-indigo-200 text-xs sm:text-sm">2ª Vez</button>
+                <button onclick="addRepeatStart()" class="px-2.5 h-10 bg-purple-100 hover:bg-purple-200 dark:bg-purple-900/50 dark:hover:bg-purple-800/50 text-purple-900 dark:text-purple-200 font-bold rounded-lg shadow-sm border border-purple-200 dark:border-purple-700 text-xs sm:text-sm">|: Início</button>
+                <button onclick="addRepeatEnd()" class="px-2.5 h-10 bg-purple-100 hover:bg-purple-200 dark:bg-purple-900/50 dark:hover:bg-purple-800/50 text-purple-900 dark:text-purple-200 font-bold rounded-lg shadow-sm border border-purple-200 dark:border-purple-700 text-xs sm:text-sm">Fim :|</button>
+                <button onclick="addVolta(1)" class="px-2.5 h-10 bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-900/50 dark:hover:bg-indigo-800/50 text-indigo-900 dark:text-indigo-200 font-bold rounded-lg shadow-sm border border-indigo-200 dark:border-indigo-700 text-xs sm:text-sm">1ª Vez</button>
+                <button onclick="addVolta(2)" class="px-2.5 h-10 bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-900/50 dark:hover:bg-indigo-800/50 text-indigo-900 dark:text-indigo-200 font-bold rounded-lg shadow-sm border border-indigo-200 dark:border-indigo-700 text-xs sm:text-sm">2ª Vez</button>
             </div>
 
             <!-- Ações Gerais -->
@@ -325,7 +368,14 @@
         let currentBow = null;        
         let currentDot = false;
         let currentStaccato = false;
-        let currentTie = false;
+        
+        let isTieActive = false;
+        let pendingTieStop = false;
+        let currentTieGroupId = null;
+
+        let isChordMode = false;
+        let isDarkMode = false;
+        
         let currentFingering = null;
         let currentStringInd = null;
         let currentDynamic = null;
@@ -344,76 +394,36 @@
 
         const clefStringsInfo = {
             'alto': [
-                { name: 'C', midi: 48 },
-                { name: 'G', midi: 55 },
-                { name: 'D', midi: 62 },
-                { name: 'A', midi: 69 }
+                { name: 'C', midi: 48 }, { name: 'G', midi: 55 }, { name: 'D', midi: 62 }, { name: 'A', midi: 69 }
             ],
             'treble': [
-                { name: 'G', midi: 55 },
-                { name: 'D', midi: 62 },
-                { name: 'A', midi: 69 },
-                { name: 'E', midi: 76 }
+                { name: 'G', midi: 55 }, { name: 'D', midi: 62 }, { name: 'A', midi: 69 }, { name: 'E', midi: 76 }
             ],
             'bass': [
-                { name: 'C', midi: 36 },
-                { name: 'G', midi: 43 },
-                { name: 'D', midi: 50 },
-                { name: 'A', midi: 57 }
+                { name: 'C', midi: 36 }, { name: 'G', midi: 43 }, { name: 'D', midi: 50 }, { name: 'A', midi: 57 }
             ]
         };
 
         const openStrings = {
-            'alto': [
-                { name: 'C3 (Dó)', freq: 130.81 },
-                { name: 'G3 (Sol)', freq: 196.00 },
-                { name: 'D4 (Ré)', freq: 293.66 },
-                { name: 'A4 (Lá)', freq: 440.00 }
-            ],
-            'treble': [
-                { name: 'G3 (Sol)', freq: 196.00 },
-                { name: 'D4 (Ré)', freq: 293.66 },
-                { name: 'A4 (Lá)', freq: 440.00 },
-                { name: 'E5 (Mi)', freq: 659.25 }
-            ],
-            'bass': [
-                { name: 'C2 (Dó)', freq: 65.41 },
-                { name: 'G2 (Sol)', freq: 98.00 },
-                { name: 'D3 (Ré)', freq: 146.83 },
-                { name: 'A3 (Lá)', freq: 220.00 }
-            ]
+            'alto': [ { name: 'C3', freq: 130.81 }, { name: 'G3', freq: 196.00 }, { name: 'D4', freq: 293.66 }, { name: 'A4', freq: 440.00 } ],
+            'treble': [ { name: 'G3', freq: 196.00 }, { name: 'D4', freq: 293.66 }, { name: 'A4', freq: 440.00 }, { name: 'E5', freq: 659.25 } ],
+            'bass': [ { name: 'C2', freq: 65.41 }, { name: 'G2', freq: 98.00 }, { name: 'D3', freq: 146.83 }, { name: 'A3', freq: 220.00 } ]
         };
 
         const instrumentStrings = {
-            'alto': [
-                { id: 'C', name: 'Corda Dó' },
-                { id: 'G', name: 'Corda Sol' },
-                { id: 'D', name: 'Corda Ré' },
-                { id: 'A', name: 'Corda Lá' }
-            ],
-            'treble': [
-                { id: 'G', name: 'Corda Sol' },
-                { id: 'D', name: 'Corda Ré' },
-                { id: 'A', name: 'Corda Lá' },
-                { id: 'E', name: 'Corda Mi' }
-            ],
-            'bass': [
-                { id: 'C', name: 'Corda Dó' },
-                { id: 'G', name: 'Corda Sol' },
-                { id: 'D', name: 'Corda Ré' },
-                { id: 'A', name: 'Corda Lá' }
-            ]
+            'alto': [ { id: 'C', name: 'Corda C' }, { id: 'G', name: 'Corda G' }, { id: 'D', name: 'Corda D' }, { id: 'A', name: 'Corda A' } ],
+            'treble': [ { id: 'G', name: 'Corda G' }, { id: 'D', name: 'Corda D' }, { id: 'A', name: 'Corda A' }, { id: 'E', name: 'Corda E' } ],
+            'bass': [ { id: 'C', name: 'Corda C' }, { id: 'G', name: 'Corda G' }, { id: 'D', name: 'Corda D' }, { id: 'A', name: 'Corda A' } ]
         };
 
-        const durationBeats = { 
-            'w': 4, 
-            'h': 2, 
-            'q': 1, 
-            '8': 0.5, 
-            '16': 0.25, 
-            '32': 0.125, 
-            '64': 0.0625 
-        };
+        const durationBeats = { 'w': 4, 'h': 2, 'q': 1, '8': 0.5, '16': 0.25, '32': 0.125, '64': 0.0625 };
+
+        function getMidi(pitchObj) {
+            let m = (pitchObj.octave + 1) * 12 + noteBaseMidi[pitchObj.key.toLowerCase()];
+            if (pitchObj.accidental === '#') m += 1;
+            if (pitchObj.accidental === 'b') m -= 1;
+            return m;
+        }
 
         function calculateExactFrequency(noteKey, octave, accidental) {
             let midi = (octave + 1) * 12 + noteBaseMidi[noteKey.toLowerCase()];
@@ -427,9 +437,7 @@
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 setupReverb();
             }
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
+            if (audioCtx.state === 'suspended') audioCtx.resume();
             return audioCtx;
         }
 
@@ -451,7 +459,7 @@
             reverbNode = delay;
         }
 
-        function playBowedStringNote(freq, durationSeconds, dynamicStr) {
+        function playBowedStringNote(freq, durationSeconds, dynamicStr, tieState = 'none') {
             const ctx = getAudioContext();
             const now = ctx.currentTime;
 
@@ -482,7 +490,6 @@
 
             const bodyFilter = ctx.createBiquadFilter();
             bodyFilter.type = 'lowpass';
-            
             const startCutoff = Math.min(freq * 2.5, 1200);
             const peakCutoff = Math.min(freq * 6.5, 8000);
             bodyFilter.frequency.setValueAtTime(startCutoff, now);
@@ -490,12 +497,26 @@
             bodyFilter.frequency.exponentialRampToValueAtTime(startCutoff * 1.5, now + durationSeconds);
 
             const masterGain = ctx.createGain();
-            const attackTime = 0.07;
-            const releaseTime = 0.15;
+            
+            // Controle dinâmico do arco consoante a ligadura (Slur)
+            let attackTime = 0.07;
+            let releaseTime = 0.15;
+            let gap = 0.04; // Pausa natural entre trocas de arco (détaché)
+
+            if (tieState === 'start') {
+                gap = 0.0; // Sem pausa, som une com o próximo
+                releaseTime = 0.05;
+            } else if (tieState === 'middle') {
+                attackTime = 0.02; // Ataque imediato e contínuo
+                gap = 0.0;
+                releaseTime = 0.05;
+            } else if (tieState === 'end') {
+                attackTime = 0.02; // Ataque contínuo de quem já estava tocando
+            }
 
             masterGain.gain.setValueAtTime(0.0001, now);
             masterGain.gain.linearRampToValueAtTime(baseGain, now + attackTime);
-            masterGain.gain.setValueAtTime(baseGain, now + durationSeconds - 0.02);
+            masterGain.gain.setValueAtTime(baseGain, Math.max(now + attackTime, now + durationSeconds - gap));
             masterGain.gain.exponentialRampToValueAtTime(0.0001, now + durationSeconds + releaseTime);
 
             oscSaw.connect(bodyFilter);
@@ -503,9 +524,7 @@
             bodyFilter.connect(masterGain);
 
             masterGain.connect(ctx.destination);
-            if (reverbNode) {
-                masterGain.connect(reverbNode);
-            }
+            if (reverbNode) masterGain.connect(reverbNode);
 
             lfo.start(now);
             oscSaw.start(now);
@@ -517,15 +536,85 @@
             oscTri.stop(stopTime);
         }
 
-        // Afinador de Cordas Soltas
+        // --- Dark Mode ---
+        function toggleDarkMode() {
+            isDarkMode = !isDarkMode;
+            if(isDarkMode) {
+                document.documentElement.classList.add('dark');
+                document.getElementById('dark-mode-icon').classList.replace('fa-moon', 'fa-sun');
+            } else {
+                document.documentElement.classList.remove('dark');
+                document.getElementById('dark-mode-icon').classList.replace('fa-sun', 'fa-moon');
+            }
+            renderStaff();
+        }
+
+        // --- Gestão de Projetos e Auto-Save ---
+        function autoSave() {
+            const cleanArray = notesArray.map(n => {
+                const { vfNoteObj, ...cleanNote } = n;
+                return cleanNote;
+            });
+            localStorage.setItem('estudo-project', JSON.stringify(cleanArray));
+        }
+
+        function loadAutoSave() {
+            const saved = localStorage.getItem('estudo-project');
+            if (saved) {
+                try { 
+                    notesArray = JSON.parse(saved);
+                    migrateDataStructure(); 
+                } catch(e) { notesArray = []; }
+            }
+        }
+
+        function migrateDataStructure() {
+            notesArray.forEach(n => {
+                if (n.type === 'note' && !n.pitches) {
+                    n.pitches = [{ key: n.key, octave: n.octave, accidental: n.accidental, stringInd: n.stringInd, fingering: n.fingering }];
+                }
+            });
+        }
+
+        function saveProject() {
+            const cleanArray = notesArray.map(n => {
+                const { vfNoteObj, ...cleanNote } = n;
+                return cleanNote;
+            });
+            const dataStr = JSON.stringify(cleanArray);
+            const blob = new Blob([dataStr], {type: "application/json"});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = document.getElementById('music-title-input').value ? `${document.getElementById('music-title-input').value}.estudo` : 'Exercício.estudo';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        document.getElementById('projectInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                try {
+                    notesArray = JSON.parse(evt.target.result);
+                    migrateDataStructure();
+                    autoSave();
+                    renderStaff();
+                    showMessage("Projeto carregado com sucesso!");
+                } catch (err) { showMessage("Arquivo .estudo inválido."); }
+            };
+            reader.readAsText(file);
+        });
+
+        // --- Afinador ---
         function updateTunerUI() {
             const container = document.getElementById('tuner-buttons');
             container.innerHTML = '';
             const strings = openStrings[currentClef] || openStrings['alto'];
-            
             strings.forEach(s => {
                 const btn = document.createElement('button');
-                btn.className = "px-2 py-0.5 bg-indigo-100 hover:bg-indigo-200 text-indigo-900 border border-indigo-300 font-bold text-xs rounded transition-all";
+                btn.className = "px-2 py-0.5 bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-900 dark:hover:bg-indigo-800 text-indigo-900 dark:text-indigo-200 border border-indigo-300 dark:border-indigo-600 font-bold text-xs rounded transition-all";
                 btn.textContent = s.name;
                 btn.onclick = () => playBowedStringNote(s.freq, 1.8, 'mf');
                 container.appendChild(btn);
@@ -535,18 +624,15 @@
         function updateStringButtons() {
             const container = document.getElementById('string-buttons-container');
             container.innerHTML = '';
-            
             const strings = instrumentStrings[currentClef] || instrumentStrings['alto'];
-            
             strings.forEach(s => {
                 const btn = document.createElement('button');
                 btn.id = `string-${s.id.toLowerCase()}`;
                 btn.onclick = () => toggleStringInd(s.id);
-                btn.className = "string-btn text-xs bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold px-2 py-0.5 rounded shadow-sm transition-all";
+                btn.className = "string-btn text-xs bg-white dark:bg-slate-800 hover:bg-amber-100 dark:hover:bg-amber-900 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700 font-bold px-2 py-0.5 rounded shadow-sm transition-all";
                 btn.textContent = s.name;
                 container.appendChild(btn);
             });
-
             currentStringInd = null;
         }
 
@@ -557,7 +643,7 @@
             const yPositions = [20, 40, 60, 80];
             
             strings.forEach((s, idx) => {
-                const thickness = 4 - idx; // A corda mais grave é a mais grossa
+                const thickness = 4 - idx;
                 const strEl = document.createElement('div');
                 strEl.className = 'absolute left-0 right-0 shadow-sm bg-gradient-to-b from-gray-300 to-gray-500 opacity-90';
                 strEl.style.height = `${Math.max(1, thickness * 0.8)}px`;
@@ -567,67 +653,74 @@
             });
         }
 
+        function forceFingerboardUpdate() {
+            const lastNote = notesArray.slice().reverse().find(n => n.type === 'note');
+            updateFingerboardGuide(lastNote);
+        }
+
         function updateFingerboardGuide(lastNote) {
             const indicator = document.getElementById('finger-indicator');
             const infoText = document.getElementById('fingerboard-info');
 
-            if (!lastNote || lastNote.type !== 'note') {
+            if (!lastNote || lastNote.type !== 'note' || !lastNote.pitches || lastNote.pitches.length === 0) {
                 indicator.classList.add('hidden');
                 infoText.textContent = "Insira uma nota para ver a posição";
                 return;
             }
 
-            // 1. Calcula o MIDI exato da nota
-            let noteMidi = (lastNote.octave + 1) * 12 + noteBaseMidi[lastNote.key];
-            if (lastNote.accidental === '#') noteMidi += 1;
-            if (lastNote.accidental === 'b') noteMidi -= 1;
+            // Seleciona a nota mais aguda do acorde para guiar o dedilhado
+            let highestPitch = lastNote.pitches.reduce((max, p) => getMidi(p) > getMidi(max) ? p : max, lastNote.pitches[0]);
+            let noteMidi = getMidi(highestPitch);
 
             const strings = clefStringsInfo[currentClef] || clefStringsInfo['alto'];
             
-            // 2. Encontra em qual corda a nota será tocada na 1ª Posição
+            const positionOffsets = { '1': 0, '3': 4, '5': 7 };
+            const posVal = document.getElementById('position-select').value;
+            const posOffset = positionOffsets[posVal] || 0;
+
             let activeStringIndex = 0;
             for (let i = strings.length - 1; i >= 0; i--) {
-                if (noteMidi >= strings[i].midi) {
+                let minMidi = strings[i].midi + posOffset;
+                if (noteMidi >= minMidi) {
                     activeStringIndex = i;
                     break;
                 }
             }
-            if (noteMidi < strings[0].midi) activeStringIndex = 0;
 
             const openMidi = strings[activeStringIndex].midi;
             const stringName = strings[activeStringIndex].name;
             const semitoneDiff = noteMidi - openMidi;
 
-            // 3. Define a posição Horizontal (X) baseada em Semitons
-            // Posição 0 (Corda Solta) = Atrás da Pestana (4%)
-            // Fitas nas posições: 20%, 40%, 60%, 80%
             const semitonePositions = [4, 14, 20, 30, 40, 50, 60, 70, 80, 90, 95];
             let xPos = semitonePositions[Math.min(semitoneDiff, semitonePositions.length - 1)];
             
-            // 4. Define a posição Vertical (Y) para cair exatamente sobre a corda desenhada
             const yPositions = [20, 40, 60, 80];
             let yPos = yPositions[activeStringIndex];
 
-            // 5. Define a nomenclatura do dedo (Simplificada para 1ª Pos)
+            // Calcula dedo teórico baseado na distância da nota e offset da posição
+            let fingerMidi = semitoneDiff - posOffset;
             let fingerName = "0";
-            if (semitoneDiff === 1 || semitoneDiff === 2) fingerName = "1";
-            else if (semitoneDiff === 3 || semitoneDiff === 4) fingerName = "2";
-            else if (semitoneDiff === 5) fingerName = "3";
-            else if (semitoneDiff >= 6) fingerName = "4";
+            if(fingerMidi < 0) fingerName = "?"; // nota impossível de tocar na posição
+            else if(fingerMidi === 0) fingerName = "0";
+            else if(fingerMidi === 1 || fingerMidi === 2) fingerName = "1";
+            else if(fingerMidi === 3 || fingerMidi === 4) fingerName = "2";
+            else if(fingerMidi === 5) fingerName = "3";
+            else fingerName = "4";
 
             indicator.style.left = `${xPos}%`;
             indicator.style.top = `${yPos}%`;
-            indicator.textContent = semitoneDiff === 0 ? '0' : fingerName;
+            indicator.textContent = fingerMidi === 0 ? '0' : fingerName;
             indicator.classList.remove('hidden');
 
-            const noteNameText = `${lastNote.key.toUpperCase()}${lastNote.accidental || ''}${lastNote.octave}`;
-            infoText.textContent = `Nota: ${noteNameText} | Corda: ${stringName} | Dedo: ${semitoneDiff === 0 ? 'Solta' : fingerName + 'º'}`;
+            const noteNameText = `${highestPitch.key.toUpperCase()}${highestPitch.accidental || ''}${highestPitch.octave}`;
+            infoText.textContent = `Nota: ${noteNameText} | Corda: ${stringName} | Dedo: ${fingerMidi === 0 ? 'Solta' : fingerName + 'º'}`;
         }
 
+        // --- Ações de Escrita ---
         function setOctave(oct, btnElement) {
             currentOctave = oct;
             document.querySelectorAll('.octave-btn').forEach(btn => {
-                btn.className = "octave-btn px-3 py-1 bg-white hover:bg-indigo-100 text-indigo-900 border border-indigo-200 text-xs font-semibold rounded-lg shadow-sm transition-all";
+                btn.className = "octave-btn px-3 py-1 bg-white dark:bg-slate-800 text-indigo-900 dark:text-indigo-200 border border-indigo-200 dark:border-slate-500 text-xs font-semibold rounded-lg shadow-sm transition-all";
             });
             if (btnElement) {
                 btnElement.className = "octave-btn px-3 py-1 bg-indigo-600 text-white border border-indigo-600 text-xs font-semibold rounded-lg shadow-sm transition-all";
@@ -661,10 +754,26 @@
         function setDuration(dur, btnElement) {
             currentDuration = dur;
             document.querySelectorAll('.dur-btn').forEach(btn => {
-                btn.className = "dur-btn bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-1 px-2.5 rounded-md text-xs sm:text-sm";
+                btn.className = "dur-btn bg-gray-100 dark:bg-slate-700 text-gray-800 dark:text-gray-200 font-medium py-1 px-2.5 rounded-md text-xs sm:text-sm border border-transparent";
             });
             if (btnElement) {
-                btnElement.className = "dur-btn bg-indigo-500 hover:bg-indigo-600 text-white font-medium py-1 px-2.5 rounded-md text-xs sm:text-sm shadow-md";
+                btnElement.className = "dur-btn bg-indigo-500 text-white font-medium py-1 px-2.5 rounded-md text-xs sm:text-sm shadow-md border border-transparent";
+            }
+        }
+
+        function toggleChordMode() {
+            isChordMode = !isChordMode;
+            const btn = document.getElementById("chord-mode-btn");
+            if(isChordMode) {
+                btn.classList.replace('bg-white', 'bg-emerald-600');
+                btn.classList.replace('text-slate-700', 'text-white');
+                btn.classList.replace('dark:bg-slate-800', 'dark:bg-emerald-600');
+                btn.classList.replace('dark:text-slate-300', 'dark:text-white');
+            } else {
+                btn.classList.replace('bg-emerald-600', 'bg-white');
+                btn.classList.replace('text-white', 'text-slate-700');
+                btn.classList.replace('dark:bg-emerald-600', 'dark:bg-slate-800');
+                btn.classList.replace('dark:text-white', 'dark:text-slate-300');
             }
         }
 
@@ -674,77 +783,66 @@
             updateNoteButtonsText();
         }
 
-        function toggleBow(bowType) {
-            currentBow = (currentBow === bowType) ? null : bowType;
-            updateButtons();
-        }
-
-        function toggleDot() {
-            currentDot = !currentDot;
-            updateButtons();
-        }
-
-        function toggleStaccato() {
-            currentStaccato = !currentStaccato;
-            updateButtons();
-        }
-
+        function toggleBow(bowType) { currentBow = (currentBow === bowType) ? null : bowType; updateButtons(); }
+        function toggleDot() { currentDot = !currentDot; updateButtons(); }
+        function toggleStaccato() { currentStaccato = !currentStaccato; updateButtons(); }
+        
+        // Multi-note Tie Logic
         function toggleTie() {
-            currentTie = !currentTie;
+            isTieActive = !isTieActive;
+            if (isTieActive) {
+                currentTieGroupId = Date.now();
+            } else {
+                pendingTieStop = true; // Next note typed will close the tie
+            }
             updateButtons();
         }
 
         function toggleFingering(f) {
             currentFingering = (currentFingering === f) ? null : f;
-            document.querySelectorAll('.fing-btn').forEach(btn => btn.classList.remove('bg-amber-300', 'text-amber-950'));
+            document.querySelectorAll('.fing-btn').forEach(btn => btn.classList.remove('bg-amber-300', 'dark:bg-amber-600', 'text-amber-950'));
             if (currentFingering) {
                 const active = document.getElementById(`fing-${f}`);
-                if (active) active.classList.add('bg-amber-300', 'text-amber-950');
+                if (active) active.classList.add('bg-amber-300', 'dark:bg-amber-600', 'text-amber-950');
             }
         }
 
         function toggleStringInd(str) {
             currentStringInd = (currentStringInd === str) ? null : str;
-            document.querySelectorAll('.string-btn').forEach(btn => btn.classList.remove('bg-amber-300', 'text-amber-950'));
+            document.querySelectorAll('.string-btn').forEach(btn => btn.classList.remove('bg-amber-300', 'dark:bg-amber-600', 'text-amber-950'));
             if (currentStringInd) {
                 const active = document.getElementById(`string-${str.toLowerCase()}`);
-                if (active) active.classList.add('bg-amber-300', 'text-amber-950');
+                if (active) active.classList.add('bg-amber-300', 'dark:bg-amber-600', 'text-amber-950');
             }
         }
 
         function toggleDynamic(dyn) {
             currentDynamic = (currentDynamic === dyn) ? null : dyn;
-            document.querySelectorAll('.dyn-btn').forEach(btn => btn.classList.remove('bg-purple-300', 'text-purple-950'));
+            document.querySelectorAll('.dyn-btn').forEach(btn => btn.classList.remove('bg-purple-300', 'dark:bg-purple-700', 'text-purple-950'));
             if (currentDynamic) {
                 const active = document.getElementById(`dyn-${dyn}`);
-                if (active) active.classList.add('bg-purple-300', 'text-purple-950');
+                if (active) active.classList.add('bg-purple-300', 'dark:bg-purple-700', 'text-purple-950');
             }
         }
 
         function updateButtons() {
-            const sBtn = document.getElementById("sharp-btn");
-            sBtn.className = currentAccidental === '#' ? "text-xs sm:text-sm bg-red-200 text-red-900 font-medium py-1 px-2.5 rounded-full border border-red-400 shadow-inner" : "text-xs sm:text-sm bg-red-50 hover:bg-red-100 text-red-800 font-medium py-1 px-2.5 rounded-full border border-red-200";
-            
-            const fBtn = document.getElementById("flat-btn");
-            fBtn.className = currentAccidental === 'b' ? "text-xs sm:text-sm bg-red-200 text-red-900 font-medium py-1 px-2.5 rounded-full border border-red-400 shadow-inner" : "text-xs sm:text-sm bg-red-50 hover:bg-red-100 text-red-800 font-medium py-1 px-2.5 rounded-full border border-red-200";
-            
-            const nBtn = document.getElementById("natural-btn");
-            nBtn.className = currentAccidental === 'n' ? "text-xs sm:text-sm bg-red-200 text-red-900 font-medium py-1 px-2.5 rounded-full border border-red-400 shadow-inner" : "text-xs sm:text-sm bg-red-50 hover:bg-red-100 text-red-800 font-medium py-1 px-2.5 rounded-full border border-red-200";
+            const accTypes = {'#': 'sharp-btn', 'b': 'flat-btn', 'n': 'natural-btn'};
+            for(let key in accTypes) {
+                let el = document.getElementById(accTypes[key]);
+                if(currentAccidental === key) el.className = "text-xs sm:text-sm bg-red-200 dark:bg-red-800 text-red-900 dark:text-white font-medium py-1 px-2.5 rounded-full border border-red-400 shadow-inner";
+                else el.className = "text-xs sm:text-sm bg-red-50 dark:bg-red-900/30 text-red-800 dark:text-red-300 font-medium py-1 px-2.5 rounded-full border border-red-200 dark:border-red-800";
+            }
 
-            const tbBtn = document.getElementById("bow-talao-btn");
-            tbBtn.className = currentBow === 'talao' ? "text-xs sm:text-sm bg-blue-200 text-blue-900 font-medium py-1 px-2.5 rounded-full border border-blue-400 shadow-inner" : "text-xs sm:text-sm bg-blue-50 hover:bg-blue-100 text-blue-800 font-medium py-1 px-2.5 rounded-full border border-blue-200";
+            const bows = {'talao': 'bow-talao-btn', 'ponta': 'bow-ponta-btn'};
+            for(let key in bows) {
+                let el = document.getElementById(bows[key]);
+                if(currentBow === key) el.className = "text-xs sm:text-sm bg-blue-200 dark:bg-blue-800 text-blue-900 dark:text-white font-medium py-1 px-2.5 rounded-full border border-blue-400 shadow-inner";
+                else el.className = "text-xs sm:text-sm bg-blue-50 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 font-medium py-1 px-2.5 rounded-full border border-blue-200 dark:border-blue-800";
+            }
 
-            const pbBtn = document.getElementById("bow-ponta-btn");
-            pbBtn.className = currentBow === 'ponta' ? "text-xs sm:text-sm bg-blue-200 text-blue-900 font-medium py-1 px-2.5 rounded-full border border-blue-400 shadow-inner" : "text-xs sm:text-sm bg-blue-50 hover:bg-blue-100 text-blue-800 font-medium py-1 px-2.5 rounded-full border border-blue-200";
-
-            const dotBtn = document.getElementById("dot-btn");
-            dotBtn.className = currentDot ? "text-xs sm:text-sm bg-yellow-200 text-yellow-900 font-medium py-1 px-2.5 rounded-full border border-yellow-400 shadow-inner" : "text-xs sm:text-sm bg-yellow-50 hover:bg-yellow-100 text-yellow-800 font-medium py-1 px-2.5 rounded-full border border-yellow-200";
-
-            const stacBtn = document.getElementById("staccato-btn");
-            stacBtn.className = currentStaccato ? "text-xs sm:text-sm bg-pink-200 text-pink-900 font-medium py-1 px-2.5 rounded-full border border-pink-400 shadow-inner" : "text-xs sm:text-sm bg-pink-50 hover:bg-pink-100 text-pink-800 font-medium py-1 px-2.5 rounded-full border border-pink-200";
-
-            const tieBtn = document.getElementById("tie-btn");
-            tieBtn.className = currentTie ? "text-xs sm:text-sm bg-teal-200 text-teal-900 font-medium py-1 px-2.5 rounded-full border border-teal-400 shadow-inner" : "text-xs sm:text-sm bg-teal-50 hover:bg-teal-100 text-teal-800 font-medium py-1 px-2.5 rounded-full border border-teal-200";
+            document.getElementById("dot-btn").className = currentDot ? "text-xs sm:text-sm bg-yellow-200 dark:bg-yellow-800 text-yellow-900 dark:text-white font-medium py-1 px-2.5 rounded-full border border-yellow-400 shadow-inner" : "text-xs sm:text-sm bg-yellow-50 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 font-medium py-1 px-2.5 rounded-full border border-yellow-200 dark:border-yellow-800";
+            document.getElementById("staccato-btn").className = currentStaccato ? "text-xs sm:text-sm bg-pink-200 dark:bg-pink-800 text-pink-900 dark:text-white font-medium py-1 px-2.5 rounded-full border border-pink-400 shadow-inner" : "text-xs sm:text-sm bg-pink-50 dark:bg-pink-900/30 text-pink-800 dark:text-pink-300 font-medium py-1 px-2.5 rounded-full border border-pink-200 dark:border-pink-800";
+            document.getElementById("tie-btn").className = isTieActive ? "text-xs sm:text-sm bg-teal-200 dark:bg-teal-800 text-teal-900 dark:text-white font-medium py-1 px-2.5 rounded-full border border-teal-400 shadow-inner" : "text-xs sm:text-sm bg-teal-50 dark:bg-teal-900/30 text-teal-800 dark:text-teal-300 font-medium py-1 px-2.5 rounded-full border border-teal-200 dark:border-teal-800";
         }
 
         function checkFit(newDuration) {
@@ -755,9 +853,7 @@
                 if (['repeat-start', 'repeat-end', 'volta-1', 'volta-2'].includes(n.type)) continue;
                 let b = durationBeats[n.duration] * (n.dot ? 1.5 : 1);
                 currentMeasureBeats += b;
-                if (currentMeasureBeats >= maxBeats - 0.001) {
-                    currentMeasureBeats = 0;
-                }
+                if (currentMeasureBeats >= maxBeats - 0.001) currentMeasureBeats = 0;
             }
             
             let addedB = durationBeats[newDuration] * (currentDot ? 1.5 : 1);
@@ -769,69 +865,77 @@
         }
 
         function addNote(noteName) {
-            if (!checkFit(currentDuration)) return;
+            if (!isChordMode && !checkFit(currentDuration)) return;
             
-            const newNote = {
-                type: 'note',
+            let pitch = {
                 key: noteName,
                 octave: currentOctave,
                 accidental: currentAccidental,
-                duration: currentDuration,
-                bow: currentBow,
-                dot: currentDot,
-                staccato: currentStaccato,
-                tieNext: currentTie,
                 fingering: currentFingering,
-                stringInd: currentStringInd ? `Corda ${currentStringInd}` : null,
-                dynamic: currentDynamic
+                stringInd: currentStringInd
             };
 
-            notesArray.push(newNote);
+            let annotationVal = document.getElementById('annotation-input').value;
+            if(annotationVal.trim() === '') annotationVal = null;
+
+            // Handle multi-note ties
+            let assignedTieGroup = null;
+            if (isTieActive) {
+                assignedTieGroup = currentTieGroupId;
+            } else if (pendingTieStop) {
+                assignedTieGroup = currentTieGroupId;
+                pendingTieStop = false;
+                currentTieGroupId = null; // Tie is complete
+            }
+
+            if (isChordMode && notesArray.length > 0 && notesArray[notesArray.length - 1].type === 'note') {
+                notesArray[notesArray.length - 1].pitches.push(pitch);
+                if (annotationVal) notesArray[notesArray.length - 1].annotation = annotationVal;
+            } else {
+                notesArray.push({
+                    type: 'note',
+                    pitches: [pitch],
+                    duration: currentDuration,
+                    bow: currentBow,
+                    dot: currentDot,
+                    staccato: currentStaccato,
+                    tieGroup: assignedTieGroup,
+                    dynamic: currentDynamic,
+                    annotation: annotationVal
+                });
+            }
             
+            document.getElementById('annotation-input').value = '';
+
             if (currentAccidental) toggleAccidental(currentAccidental);
             if (currentBow) toggleBow(currentBow); 
             if (currentDot) toggleDot();
             if (currentStaccato) toggleStaccato();
-            if (currentTie) toggleTie();
             if (currentFingering) toggleFingering(currentFingering);
             if (currentStringInd) toggleStringInd(currentStringInd);
             if (currentDynamic) toggleDynamic(currentDynamic);
 
-            updateFingerboardGuide(newNote);
+            autoSave();
+            updateFingerboardGuide(notesArray[notesArray.length - 1]);
             renderStaff();
         }
 
         function addRest() {
             if (!checkFit(currentDuration)) return;
-            
-            notesArray.push({ 
-                type: 'rest',
-                duration: currentDuration,
-                dot: currentDot
-            });
-            
+            notesArray.push({ type: 'rest', duration: currentDuration, dot: currentDot });
             if (currentDot) toggleDot();
+            autoSave();
             renderStaff();
         }
 
-        function addRepeatStart() {
-            notesArray.push({ type: 'repeat-start' });
-            renderStaff();
-        }
-
-        function addRepeatEnd() {
-            notesArray.push({ type: 'repeat-end' });
-            renderStaff();
-        }
-
-        function addVolta(number) {
-            notesArray.push({ type: number === 1 ? 'volta-1' : 'volta-2' });
-            renderStaff();
-        }
+        function addRepeatStart() { notesArray.push({ type: 'repeat-start' }); autoSave(); renderStaff(); }
+        function addRepeatEnd() { notesArray.push({ type: 'repeat-end' }); autoSave(); renderStaff(); }
+        function addVolta(number) { notesArray.push({ type: number === 1 ? 'volta-1' : 'volta-2' }); autoSave(); renderStaff(); }
 
         function undo() {
             notesArray.pop();
             const lastNote = notesArray.slice().reverse().find(n => n.type === 'note');
+            autoSave();
             updateFingerboardGuide(lastNote);
             renderStaff();
         }
@@ -839,54 +943,42 @@
         function clearStaff() {
             notesArray = [];
             stopPlayback();
+            autoSave();
             updateFingerboardGuide(null);
             renderStaff();
         }
 
         function changeClef() {
             currentClef = document.getElementById("clef-select").value;
-            
-            if (currentClef === 'treble') {
-                setOctave(4, document.getElementById('octave-4-btn'));
-            } else if (currentClef === 'alto') {
-                setOctave(4, document.getElementById('octave-4-btn'));
-            } else if (currentClef === 'bass') {
-                setOctave(3, document.getElementById('octave-3-btn'));
-            }
+            if (currentClef === 'treble') setOctave(4, document.getElementById('octave-4-btn'));
+            else if (currentClef === 'alto') setOctave(4, document.getElementById('octave-4-btn'));
+            else if (currentClef === 'bass') setOctave(3, document.getElementById('octave-3-btn'));
 
             updateTunerUI();
             updateStringButtons();
             renderFingerboardStrings();
             renderStaff();
             
-            // Atualiza a posição visual se já houver uma nota ao trocar de clave
             const lastNote = notesArray.slice().reverse().find(n => n.type === 'note');
             if(lastNote) updateFingerboardGuide(lastNote);
         }
 
-        // Metrônomo
+        // --- Metrônomo ---
         function updateBPM(val) {
             bpm = parseInt(val);
             document.getElementById('bpm-display').textContent = `${bpm} BPM`;
-            if (isMetronomeOn) {
-                stopMetronome();
-                startMetronome();
-            }
+            if (isMetronomeOn) { stopMetronome(); startMetronome(); }
         }
 
         function toggleMetronome() {
-            if (isMetronomeOn) {
-                stopMetronome();
-            } else {
-                startMetronome();
-            }
+            if (isMetronomeOn) stopMetronome();
+            else startMetronome();
         }
 
         function startMetronome() {
             isMetronomeOn = true;
             document.getElementById('metro-btn').textContent = "Desligar";
             document.getElementById('metro-btn').className = "bg-rose-600 hover:bg-rose-500 text-white px-2.5 py-1 rounded text-xs font-bold transition-all";
-            
             const intervalMs = (60 / bpm) * 1000;
             playClick();
             metronomeInterval = setInterval(playClick, intervalMs);
@@ -903,12 +995,10 @@
             const ctx = getAudioContext();
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
-
             osc.type = 'sine';
             osc.frequency.setValueAtTime(1000, ctx.currentTime);
             gain.gain.setValueAtTime(0.3, ctx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
-
             osc.connect(gain);
             gain.connect(ctx.destination);
             osc.start();
@@ -923,13 +1013,10 @@
             }, 100);
         }
 
-        // Playback da Partitura
+        // --- Playback ---
         function togglePlay() {
-            if (isPlaying) {
-                stopPlayback();
-            } else {
-                startPlayback();
-            }
+            if (isPlaying) stopPlayback();
+            else startPlayback();
         }
 
         function startPlayback() {
@@ -957,18 +1044,31 @@
                 const durationSeconds = (beats * (60 / bpm));
                 const durationMs = durationSeconds * 1000;
 
+                // Análise inteligente da frase (para saber se o arco para ou continua)
+                let prevItem = noteIndex > 0 ? executableNotes[noteIndex-1] : null;
+                let nextItem = noteIndex < executableNotes.length - 1 ? executableNotes[noteIndex+1] : null;
+                let tieState = 'none';
+                
+                if (item.tieGroup) {
+                    let hasPrev = prevItem && prevItem.tieGroup === item.tieGroup;
+                    let hasNext = nextItem && nextItem.tieGroup === item.tieGroup;
+                    if (!hasPrev && hasNext) tieState = 'start';
+                    else if (hasPrev && hasNext) tieState = 'middle';
+                    else if (hasPrev && !hasNext) tieState = 'end';
+                }
+
                 if (item.type === 'note') {
-                    const freq = calculateExactFrequency(item.key, item.octave, item.accidental);
-                    playBowedStringNote(freq, durationSeconds, item.dynamic);
+                    item.pitches.forEach(p => {
+                        const freq = calculateExactFrequency(p.key, p.octave, p.accidental);
+                        playBowedStringNote(freq, durationSeconds, item.dynamic, tieState);
+                    });
                     updateFingerboardGuide(item);
                 }
 
                 if (item.vfNoteObj && item.vfNoteObj.getSVGElement) {
                     const el = item.vfNoteObj.getSVGElement();
                     if (el) el.classList.add('playing-note');
-                    setTimeout(() => {
-                        if (el) el.classList.remove('playing-note');
-                    }, durationMs);
+                    setTimeout(() => { if (el) el.classList.remove('playing-note'); }, durationMs);
                 }
 
                 noteIndex++;
@@ -982,12 +1082,12 @@
             isPlaying = false;
             clearTimeout(playbackTimeout);
             document.getElementById('play-icon').textContent = "▶";
-            document.getElementById('play-text').textContent = "Ouvir Partitura";
+            document.getElementById('play-text').textContent = "Ouvir";
             document.getElementById('play-btn').className = "bg-indigo-500 hover:bg-indigo-400 text-white px-3.5 py-1.5 rounded-lg font-bold text-xs sm:text-sm flex items-center gap-1.5 transition-all shadow-sm";
             document.querySelectorAll('.playing-note').forEach(e => e.classList.remove('playing-note'));
         }
 
-        // Exportação de Áudio em WAV
+        // --- Exportação WAV ---
         function downloadWAV() {
             const executableNotes = notesArray.filter(n => n.type === 'note' || n.type === 'rest');
             if (executableNotes.length === 0) {
@@ -1005,28 +1105,49 @@
             const offlineCtx = new OfflineAudioContext(1, sampleRate * (totalDuration + 0.5), sampleRate);
             let currentTime = 0;
 
-            executableNotes.forEach(item => {
+            executableNotes.forEach((item, index) => {
                 const beats = durationBeats[item.duration] * (item.dot ? 1.5 : 1);
                 const durationSeconds = (beats * (60 / bpm));
 
+                // Análise da frase para renderização do WAV idêntico ao reproduzido
+                let prevItem = index > 0 ? executableNotes[index-1] : null;
+                let nextItem = index < executableNotes.length - 1 ? executableNotes[index+1] : null;
+                let tieState = 'none';
+                
+                if (item.tieGroup) {
+                    let hasPrev = prevItem && prevItem.tieGroup === item.tieGroup;
+                    let hasNext = nextItem && nextItem.tieGroup === item.tieGroup;
+                    if (!hasPrev && hasNext) tieState = 'start';
+                    else if (hasPrev && hasNext) tieState = 'middle';
+                    else if (hasPrev && !hasNext) tieState = 'end';
+                }
+
                 if (item.type === 'note') {
-                    const freq = calculateExactFrequency(item.key, item.octave, item.accidental);
-                    
-                    const osc = offlineCtx.createOscillator();
-                    const gain = offlineCtx.createGain();
+                    item.pitches.forEach(p => {
+                        const freq = calculateExactFrequency(p.key, p.octave, p.accidental);
+                        const osc = offlineCtx.createOscillator();
+                        const gain = offlineCtx.createGain();
+                        osc.type = 'sawtooth';
+                        osc.frequency.setValueAtTime(freq, currentTime);
+                        
+                        let attackTime = 0.07;
+                        let releaseTime = 0.15;
+                        let gap = 0.04;
 
-                    osc.type = 'sawtooth';
-                    osc.frequency.setValueAtTime(freq, currentTime);
+                        if (tieState === 'start') { gap = 0.0; releaseTime = 0.05; }
+                        else if (tieState === 'middle') { attackTime = 0.02; gap = 0.0; releaseTime = 0.05; }
+                        else if (tieState === 'end') { attackTime = 0.02; }
 
-                    gain.gain.setValueAtTime(0.001, currentTime);
-                    gain.gain.linearRampToValueAtTime(0.2, currentTime + 0.05);
-                    gain.gain.exponentialRampToValueAtTime(0.001, currentTime + durationSeconds - 0.02);
-
-                    osc.connect(gain);
-                    gain.connect(offlineCtx.destination);
-
-                    osc.start(currentTime);
-                    osc.stop(currentTime + durationSeconds);
+                        gain.gain.setValueAtTime(0.001, currentTime);
+                        gain.gain.linearRampToValueAtTime(0.2, currentTime + attackTime);
+                        gain.gain.setValueAtTime(0.2, Math.max(currentTime + attackTime, currentTime + durationSeconds - gap));
+                        gain.gain.exponentialRampToValueAtTime(0.001, currentTime + durationSeconds + releaseTime);
+                        
+                        osc.connect(gain);
+                        gain.connect(offlineCtx.destination);
+                        osc.start(currentTime);
+                        osc.stop(currentTime + durationSeconds + releaseTime);
+                    });
                 }
                 currentTime += durationSeconds;
             });
@@ -1037,7 +1158,7 @@
                 const a = document.createElement('a');
                 a.style.display = 'none';
                 a.href = url;
-                a.download = 'Partitura_Estudo.wav';
+                a.download = document.getElementById('music-title-input').value ? `${document.getElementById('music-title-input').value}.wav` : 'Partitura_Estudo.wav';
                 document.body.appendChild(a);
                 a.click();
                 setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
@@ -1045,147 +1166,49 @@
         }
 
         function bufferToWave(abuffer, len) {
-            let numOfChan = abuffer.numberOfChannels,
-                length = len * numOfChan * 2 + 44,
-                buffer = new ArrayBuffer(length),
-                view = new DataView(buffer),
+            let numOfChan = abuffer.numberOfChannels, length = len * numOfChan * 2 + 44,
+                buffer = new ArrayBuffer(length), view = new DataView(buffer),
                 channels = [], i, sample, offset = 0, pos = 0;
-
             function setUint16(data) { view.setUint16(pos, data, true); pos += 2; }
             function setUint32(data) { view.setUint32(pos, data, true); pos += 4; }
-
-            setUint32(0x46464952);                         // "RIFF"
-            setUint32(length - 8);                         // file length - 8
-            setUint32(0x45564157);                         // "WAVE"
-            setUint32(0x20746d66);                         // "fmt " chunk
-            setUint32(16);                                 // length = 16
-            setUint16(1);                                  // PCM (uncompressed)
-            setUint16(numOfChan);
-            setUint32(abuffer.sampleRate);
-            setUint32(abuffer.sampleRate * 2 * numOfChan); // avg. bytes/sec
-            setUint16(numOfChan * 2);                      // block-align
-            setUint16(16);                                 // 16-bit
-            setUint32(0x61746164);                         // "data" chunk
-            setUint32(length - pos - 4);                   // chunk length
-
+            setUint32(0x46464952); setUint32(length - 8); setUint32(0x45564157);
+            setUint32(0x20746d66); setUint32(16); setUint16(1); setUint16(numOfChan);
+            setUint32(abuffer.sampleRate); setUint32(abuffer.sampleRate * 2 * numOfChan);
+            setUint16(numOfChan * 2); setUint16(16); setUint32(0x61746164); setUint32(length - pos - 4);
             for (i = 0; i < abuffer.numberOfChannels; i++) channels.push(abuffer.getChannelData(i));
-
             while (pos < length) {
                 for (i = 0; i < numOfChan; i++) {
                     sample = Math.max(-1, Math.min(1, channels[i][offset]));
                     sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0;
-                    view.setInt16(pos, sample, true);
-                    pos += 2;
+                    view.setInt16(pos, sample, true); pos += 2;
                 }
                 offset++;
             }
             return new Blob([buffer], { type: "audio/wav" });
         }
 
-        // Importador de MusicXML
-        document.getElementById('musicxmlInput').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(evt) {
-                try {
-                    const xmlText = evt.target.result;
-                    const parser = new DOMParser();
-                    const xmlDoc = parser.parseFromString(xmlText, "text/xml");
-
-                    notesArray = [];
-                    const measureNodes = xmlDoc.getElementsByTagName("measure");
-
-                    if (measureNodes.length === 0) {
-                        showMessage("Nenhum compasso encontrado no arquivo MusicXML.");
-                        return;
-                    }
-
-                    for (let i = 0; i < measureNodes.length; i++) {
-                        let noteNodes = measureNodes[i].getElementsByTagName("note");
-
-                        for (let j = 0; j < noteNodes.length; j++) {
-                            let noteEl = noteNodes[j];
-                            let isRest = noteEl.getElementsByTagName("rest").length > 0;
-                            let typeEl = noteEl.getElementsByTagName("type")[0];
-                            
-                            let durationMap = { "whole": "w", "half": "h", "quarter": "q", "eighth": "8", "16th": "16", "32nd": "32" };
-                            let dur = typeEl && durationMap[typeEl.textContent] ? durationMap[typeEl.textContent] : "q";
-
-                            if (isRest) {
-                                notesArray.push({
-                                    type: 'rest',
-                                    duration: dur,
-                                    dot: noteEl.getElementsByTagName("dot").length > 0
-                                });
-                            } else {
-                                let pitchEl = noteEl.getElementsByTagName("pitch")[0];
-                                if (pitchEl) {
-                                    let step = pitchEl.getElementsByTagName("step")[0].textContent.toLowerCase();
-                                    let octave = parseInt(pitchEl.getElementsByTagName("octave")[0].textContent, 10);
-                                    let alterEl = pitchEl.getElementsByTagName("alter")[0];
-                                    let acc = null;
-                                    if (alterEl) {
-                                        if (alterEl.textContent === "1") acc = "#";
-                                        else if (alterEl.textContent === "-1") acc = "b";
-                                    }
-
-                                    notesArray.push({
-                                        type: 'note',
-                                        key: step,
-                                        octave: octave,
-                                        accidental: acc,
-                                        duration: dur,
-                                        dot: noteEl.getElementsByTagName("dot").length > 0,
-                                        staccato: false,
-                                        tieNext: false,
-                                        fingering: null,
-                                        stringInd: null,
-                                        dynamic: null
-                                    });
-                                }
-                            }
-                        }
-                    }
-
-                    renderStaff();
-                    showMessage("Partitura MusicXML importada com sucesso!");
-                } catch (err) {
-                    showMessage("Erro ao ler o arquivo MusicXML: " + err.message);
-                }
-            };
-            reader.readAsText(file);
-        });
-
+        // --- PDF & Render ---
         function savePDF() {
             stopPlayback();
             window.scrollTo(0, 0);
             const container = document.getElementById('app-container');
             const musicTitle = document.getElementById('music-title-input').value;
-            
             const pdfTitleEl = document.getElementById('pdf-title');
-            if (musicTitle.trim() !== '') {
-                pdfTitleEl.textContent = musicTitle;
-                pdfTitleEl.classList.remove('hidden');
-            } else {
-                pdfTitleEl.classList.add('hidden');
-            }
+            if (musicTitle.trim() !== '') { pdfTitleEl.textContent = musicTitle; pdfTitleEl.classList.remove('hidden'); } 
+            else { pdfTitleEl.classList.add('hidden'); }
 
             container.classList.add('pdf-mode');
-            
             const vfContainer = document.getElementById('vf-container');
             const origWidth = vfContainer.style.width;
             vfContainer.style.width = vfContainer.scrollWidth + "px";
 
             const opt = {
                 margin:       10,
-                filename:     musicTitle ? `${musicTitle.replace(/\s+/g, '_')}.pdf` : 'Partitura_Estudo_Musical.pdf',
+                filename:     musicTitle ? `${musicTitle.replace(/\s+/g, '_')}.pdf` : 'Partitura_Estudo.pdf',
                 image:        { type: 'jpeg', quality: 1 },
                 html2canvas:  { scale: 2, useCORS: true },
                 jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
             };
-
             html2pdf().set(opt).from(container).save().then(() => {
                 container.classList.remove('pdf-mode');
                 pdfTitleEl.classList.add('hidden');
@@ -1203,30 +1226,18 @@
             const tempoText = document.getElementById("tempo-select").value;
             const maxBeats = getMaxBeats();
             
-            const availableWidth = container.clientWidth > 100 ? container.clientWidth - 40 : 850;
-            const baseMeasureWidth = Math.max(160, Math.floor(availableWidth / measuresPerLine));
+            const availableWidth = container.clientWidth > 100 ? container.clientWidth - 20 : 850;
+            const baseMeasureWidth = Math.max(160, Math.floor((availableWidth - 80) / measuresPerLine));
 
             let measures = [];
             let currentMeasure = { notes: [], repeatStart: false, repeatEnd: false, volta: null };
             let currentBeats = 0;
 
             for (let n of notesArray) {
-                if (n.type === 'repeat-start') {
-                    currentMeasure.repeatStart = true;
-                    continue;
-                }
-                if (n.type === 'repeat-end') {
-                    currentMeasure.repeatEnd = true;
-                    continue;
-                }
-                if (n.type === 'volta-1') {
-                    currentMeasure.volta = 1;
-                    continue;
-                }
-                if (n.type === 'volta-2') {
-                    currentMeasure.volta = 2;
-                    continue;
-                }
+                if (n.type === 'repeat-start') { currentMeasure.repeatStart = true; continue; }
+                if (n.type === 'repeat-end') { currentMeasure.repeatEnd = true; continue; }
+                if (n.type === 'volta-1') { currentMeasure.volta = 1; continue; }
+                if (n.type === 'volta-2') { currentMeasure.volta = 2; continue; }
 
                 currentMeasure.notes.push(n);
                 currentBeats += durationBeats[n.duration] * (n.dot ? 1.5 : 1);
@@ -1249,170 +1260,129 @@
                 lines.push(measures.slice(i, i + measuresPerLine));
             }
 
+            // Um único SVG para permitir ties entre compassos perfeitamente
+            const renderer = new VF.Renderer(container, VF.Renderer.Backends.SVG);
+            renderer.resize(availableWidth, lines.length * 150 + 20);
+            const context = renderer.getContext();
+            
+            if (isDarkMode) {
+                context.setFillStyle('#e2e8f0');
+                context.setStrokeStyle('#e2e8f0');
+            } else {
+                context.setFillStyle('#000000');
+                context.setStrokeStyle('#000000');
+            }
+
+            let globalTies = {};
+            let currentY = 10;
+
             lines.forEach((lineMeasures, lineIndex) => {
-                const lineDiv = document.createElement("div");
-                lineDiv.style.marginBottom = "10px";
-                lineDiv.style.display = "flex";
-                lineDiv.style.justifyContent = "center";
-                container.appendChild(lineDiv);
-
-                let totalLineWidth = lineMeasures.reduce((acc, _, idx) => acc + baseMeasureWidth + (idx === 0 ? 90 : 0), 20);
-
-                const renderer = new VF.Renderer(lineDiv, VF.Renderer.Backends.SVG);
-                renderer.resize(totalLineWidth, 170);
-                const context = renderer.getContext();
-
                 let xPos = 10;
 
                 for (let i = 0; i < lineMeasures.length; i++) {
                     const measureData = lineMeasures[i];
                     const isFirstMeasureOfLine = (i === 0);
                     let mWidth = baseMeasureWidth;
-                    
                     if (isFirstMeasureOfLine) mWidth += 90; 
 
-                    const stave = new VF.Stave(xPos, 50, mWidth);
+                    const stave = new VF.Stave(xPos, currentY, mWidth);
                     
                     if (isFirstMeasureOfLine) {
-                        stave.addClef(currentClef)
-                             .addKeySignature(keySig)
-                             .addTimeSignature(timeSig);
-
+                        stave.addClef(currentClef).addKeySignature(keySig).addTimeSignature(timeSig);
                         if (lineIndex === 0) {
-                            stave.setTempo({ 
-                                name: tempoText.split('(')[0].trim(), 
-                                duration: 'q', 
-                                bpm: parseInt(tempoText.match(/\d+/)[0]) 
-                            }, -30);
+                            stave.setTempo({ name: tempoText.split('(')[0].trim(), duration: 'q', bpm: parseInt(tempoText.match(/\d+/)[0]) }, -30);
                         }
                     }
-                    if (measureData.repeatStart) {
-                        stave.setBegBarType(VF.Barline.type.REPEAT_BEGIN);
-                    }
-                    if (measureData.repeatEnd) {
-                        stave.setEndBarType(VF.Barline.type.REPEAT_END);
-                    } else if (lineIndex === lines.length - 1 && i === lineMeasures.length - 1) {
-                        stave.setEndBarType(VF.Barline.type.END);
-                    }
-
-                    if (measureData.volta) {
-                        stave.setVoltaType(
-                            measureData.volta === 1 ? VF.Volta.type.BEGIN : VF.Volta.type.BEGIN_END,
-                            `${measureData.volta}.`,
-                            -5
-                        );
-                    }
+                    if (measureData.repeatStart) stave.setBegBarType(VF.Barline.type.REPEAT_BEGIN);
+                    if (measureData.repeatEnd) stave.setEndBarType(VF.Barline.type.REPEAT_END); 
+                    else if (lineIndex === lines.length - 1 && i === lineMeasures.length - 1) stave.setEndBarType(VF.Barline.type.END);
+                    
+                    if (measureData.volta) stave.setVoltaType(measureData.volta === 1 ? VF.Volta.type.BEGIN : VF.Volta.type.BEGIN_END, `${measureData.volta}.`, -5);
 
                     stave.setContext(context).draw();
 
                     const measureNotes = measureData.notes;
                     if (measureNotes && measureNotes.length > 0) {
-                        let tiePairs = [];
-                        const vfNotes = measureNotes.map((n, idx) => {
+                        const vfNotes = measureNotes.map((n) => {
                             let vfDuration = n.duration;
                             if (n.dot) vfDuration += "d";
 
+                            let note;
                             if (n.type === 'rest') {
-                                const note = new VF.StaveNote({ keys: ["b/4"], duration: vfDuration + "r", clef: currentClef });
+                                note = new VF.StaveNote({ keys: ["b/4"], duration: vfDuration + "r", clef: currentClef });
                                 if (n.dot) note.addDot(0);
-                                n.vfNoteObj = note;
-                                return note;
                             } else {
-                                const keyStr = n.accidental && n.accidental !== 'n' 
-                                    ? `${n.key}${n.accidental}/${n.octave}` 
-                                    : `${n.key}/${n.octave}`;
-                                const note = new VF.StaveNote({ keys: [keyStr], duration: vfDuration, clef: currentClef });
+                                // Ordena pitches por MIDI
+                                n.pitches.sort((a,b) => getMidi(a) - getMidi(b));
+                                const keys = n.pitches.map(p => p.accidental && p.accidental !== 'n' ? `${p.key}${p.accidental}/${p.octave}` : `${p.key}/${p.octave}`);
                                 
-                                if (n.accidental) {
-                                    note.addAccidental(0, new VF.Accidental(n.accidental));
-                                }
-                                if (n.dot) {
-                                    note.addDot(0);
-                                }
-                                if (n.staccato) {
-                                    note.addModifier(0, new VF.Articulation('a.').setPosition(3));
-                                }
-                                if (n.bow) {
-                                    const artCode = n.bow === 'talao' ? 'am' : 'a|';
-                                    note.addModifier(0, new VF.Articulation(artCode).setPosition(3));
-                                }
-                                if (n.fingering) {
-                                    note.addModifier(0, new VF.StringNumber(n.fingering).setPosition(3));
-                                }
-                                if (n.stringInd) {
-                                    note.addModifier(0, new VF.Annotation(n.stringInd).setFont('sans-serif', 9, 'bold').setVerticalJustification(VF.Annotation.VerticalJustify.BOTTOM));
-                                }
-                                if (n.dynamic) {
-                                    note.addModifier(0, new VF.Annotation(n.dynamic).setFont('serif', 12, 'italic bold').setVerticalJustification(VF.Annotation.VerticalJustify.BOTTOM));
-                                }
+                                note = new VF.StaveNote({ keys: keys, duration: vfDuration, clef: currentClef });
                                 
-                                n.vfNoteObj = note;
+                                n.pitches.forEach((p, idx) => {
+                                    if (p.accidental) note.addAccidental(idx, new VF.Accidental(p.accidental));
+                                    if (p.fingering) note.addModifier(idx, new VF.StringNumber(p.fingering).setPosition(3));
+                                    if (p.stringInd) note.addModifier(idx, new VF.Annotation(p.stringInd).setFont('sans-serif', 9, 'bold').setVerticalJustification(VF.Annotation.VerticalJustify.BOTTOM));
+                                });
 
-                                if (n.tieNext && idx < measureNotes.length - 1 && measureNotes[idx+1].type === 'note') {
-                                    tiePairs.push({ first: note, lastNoteIndex: idx + 1 });
-                                }
-                                return note;
+                                if (n.dot) note.addDot(0);
+                                if (n.staccato) note.addModifier(0, new VF.Articulation('a.').setPosition(3));
+                                if (n.bow) note.addModifier(0, new VF.Articulation(n.bow === 'talao' ? 'am' : 'a|').setPosition(3));
+                                if (n.dynamic) note.addModifier(0, new VF.Annotation(n.dynamic).setFont('serif', 12, 'italic bold').setVerticalJustification(VF.Annotation.VerticalJustify.BOTTOM));
+                                if (n.annotation) note.addModifier(0, new VF.Annotation(n.annotation).setFont('sans-serif', 10).setVerticalJustification(VF.Annotation.VerticalJustify.TOP));
                             }
+                            
+                            n.vfNoteObj = note;
+
+                            // Handle Multi-note Tie Tracking
+                            if (n.type === 'note' && n.tieGroup) {
+                                if (!globalTies[n.tieGroup]) globalTies[n.tieGroup] = { first: note, last: note };
+                                else globalTies[n.tieGroup].last = note;
+                            }
+                            return note;
                         });
 
                         const voice = new VF.Voice({ num_beats: maxBeats, beat_value: 4 });
                         voice.setMode(VF.Voice.Mode.SOFT);
                         voice.addTickables(vfNotes);
-
-                        const formatter = new VF.Formatter().joinVoices([voice]).format([voice], mWidth - (isFirstMeasureOfLine ? 95 : 30));
+                        new VF.Formatter().joinVoices([voice]).format([voice], mWidth - (isFirstMeasureOfLine ? 95 : 30));
                         
-                        const beams = VF.Beam.generateBeams(vfNotes, {
-                            groups: timeSig === '6/8' ? [new VF.Fraction(3, 8)] : [new VF.Fraction(1, 4)],
-                            flat_beams: false
-                        });
+                        const beams = VF.Beam.generateBeams(vfNotes, { groups: timeSig === '6/8' ? [new VF.Fraction(3, 8)] : [new VF.Fraction(1, 4)], flat_beams: false });
 
                         voice.draw(context, stave);
                         beams.forEach(b => b.setContext(context).draw());
-
-                        tiePairs.forEach(tp => {
-                            const lastNoteObj = measureNotes[tp.lastNoteIndex].vfNoteObj;
-                            if (lastNoteObj) {
-                                const tie = new VF.StaveTie({
-                                    first_note: tp.first,
-                                    last_note: lastNoteObj,
-                                    first_indices: [0],
-                                    last_indices: [0]
-                                });
-                                tie.setContext(context).draw();
-                            }
-                        });
                     }
                     xPos += mWidth;
+                }
+                currentY += 150; // Move height down for next system
+            });
+
+            // Draw multi-note ties across the single global SVG context
+            Object.values(globalTies).forEach(t => {
+                if (t.first !== t.last) {
+                    new VF.StaveTie({
+                        first_note: t.first,
+                        last_note: t.last,
+                        first_indices: [0],
+                        last_indices: [0]
+                    }).setContext(context).draw();
                 }
             });
         }
 
-        // Atalhos de Teclado
         window.addEventListener('keydown', function(e) {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
-
             const key = e.key.toLowerCase();
-
-            if (['c', 'd', 'e', 'f', 'g', 'a', 'b'].includes(key)) {
-                addNote(key);
-            } else if (key === '1') {
-                setDuration('w');
-            } else if (key === '2') {
-                setDuration('h');
-            } else if (key === '4') {
-                setDuration('q');
-            } else if (key === '8') {
-                setDuration('8');
-            } else if (e.code === 'Space') {
-                e.preventDefault();
-                togglePlay();
-            } else if (e.ctrlKey && key === 'z') {
-                e.preventDefault();
-                undo();
-            }
+            if (['c', 'd', 'e', 'f', 'g', 'a', 'b'].includes(key)) addNote(key);
+            else if (key === '1') setDuration('w');
+            else if (key === '2') setDuration('h');
+            else if (key === '4') setDuration('q');
+            else if (key === '8') setDuration('8');
+            else if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
+            else if (e.ctrlKey && key === 'z') { e.preventDefault(); undo(); }
         });
 
         // Inicialização
+        loadAutoSave();
         updateTunerUI();
         updateStringButtons();
         renderFingerboardStrings();
